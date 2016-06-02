@@ -12,7 +12,25 @@ public class NetworkManager : MonoBehaviour {
 	
 	}
 
+    bool isInitialConnection = true;
+    bool hasConnected = false;
+
     public void Test_SendDataToServer() {
-        clientConnection.EstablishConnection ( );
+        if ( isInitialConnection ) {
+            hasConnected = clientConnection.EstablishConnection ( );
+            if ( hasConnected ) {
+                isInitialConnection = false;
+            }
+        }
+
+        if ( hasConnected ) {
+            clientConnection.SendData ( );
+        }       
+    }
+
+    public void Test_CloseConnection() {
+        clientConnection.CloseConnection ( );
+        isInitialConnection = true;
+        hasConnected = false;
     }
 }

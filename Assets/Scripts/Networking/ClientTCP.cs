@@ -5,9 +5,13 @@ using System.Net;
 using System.Net.Sockets;  
 
 public class ClientTCP {
+    private const string serverAddr = "10.0.0.76";
+
     private static Socket serverConn;
-    private static IPAddress serverAddr;
+    private static IPAddress serverIP;
     private static IPEndPoint serverEndpoint;
+
+    private NetworkStream stream;
 
     private int connRetryAttempts = 0;
     private bool isConnected = false;
@@ -15,10 +19,11 @@ public class ClientTCP {
 
     /* Default constructor */
     public ClientTCP () {
-        Config ( );
+        serverIP = IPAddress.Parse ( serverAddr );
+        serverEndpoint = new IPEndPoint ( serverIP , 9080 );
     }
 
-    public void EstablishConnection ( ) {
+    public bool EstablishConnection ( ) {
         serverConn = OpenTCPSocket ( );
 
         try {
@@ -30,46 +35,37 @@ public class ClientTCP {
             if ( connRetryAttempts > 3 ) {
                 Debug.Log ( "Failed to connect after " + connRetryAttempts + " retry attempts, terminating." );
                 connRetryAttempts = 0;
-                return;
+                return false;
             }
 
             ++connRetryAttempts;
             EstablishConnection ( );
         }
 
-        bool isReadComplete = ReadWriteStream ( serverConn );
-
-        if ( isReadComplete ) {
-            return;
-        }
-        //byte[] outputBuffer1 = Encoding.ASCII.GetBytes("testicles specticles wallets and watch");
-        //byte[] outputBuffer2 = Encoding.ASCII.GetBytes("WTF FUCK ARE YOU THINKING");
-        //byte[] outputBuffer3 = Encoding.ASCII.GetBytes("HAHAHAHAHATESTER");
-
-        //byte[] inputBuffer = new byte[1024];
-
-        //SendData ( serverConn, outputBuffer1 );
-        //SendData ( serverConn, outputBuffer2 );
-        //SendData ( serverConn, outputBuffer3 );
-
-        //int recv = serverConn.Receive(inputBuffer);
-        //string input = Encoding.ASCII.GetString(inputBuffer,0, recv);
-
-        //Debug.Log ( input );
-
-        //serverConn.Close ( );
+        stream = new NetworkStream ( serverConn );
+        return true;
     }
 
-    private void Config() {
-        serverAddr = IPAddress.Parse ( "127.0.0.1" );
-        serverEndpoint = new IPEndPoint ( serverAddr, 8080 );
+    public void CloseConnection( ) {
+        stream.Close ( );
+        serverConn.Shutdown ( SocketShutdown.Both ); // try with this commented out to see what effects it has
+        serverConn.Close ( );
+    }
+
+    public void SendData ( ) {
+        string str = "tessssssticles spectacles wallets and watch";
+
+        if ( stream.CanWrite ) {
+            stream.Write ( Encoding.ASCII.GetBytes ( str ) , 0 , str.Length );
+            stream.Flush ( );
+        }
     }
 
     private Socket OpenTCPSocket() {
         return new Socket ( AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp );
     }
 
-    private int SendData(Socket conn, byte[] data) {
+    private int SendDataVar ( Socket conn , byte[] data ) {
         int total = 0;
         int sent = 0;
 
@@ -81,51 +77,11 @@ public class ClientTCP {
         sent = conn.Send ( datasize );
 
         while ( total < bufferSize ) {
-            sent = conn.Send ( data, total, dataLeft, 0 );
+            sent = conn.Send ( data , total , dataLeft , 0 );
             total += sent;
             dataLeft -= sent;
         }
 
-        return total;      
-    }
-
-    private bool ReadWriteStream(Socket conn) {
-        NetworkStream stream = new NetworkStream(conn);
-
-        int recv = 0;
-        string stringData = "";
-        byte[] data = new byte[1024];
-
-        if ( stream.CanRead ) {
-            recv = stream.Read ( data, 0, data.Length );
-            stringData = Encoding.ASCII.GetString ( data, 0, recv );
-            Debug.Log ( stringData );
-        } else {
-            Debug.Log ( "Error: cannot read from socket." );
-            stream.Close ( );
-            serverConn.Close ( );
-            return false;
-        }
-
-        // should be in a while loop
-        string str = "tessssssticles spectacles wallets and watch";
-
-        //if ( i > 1000 ) {
-          //  break;
-        //}
-
-        if ( stream.CanWrite ) {
-            stream.Write ( Encoding.ASCII.GetBytes ( str ), 0, str.Length );
-            stream.Flush ( );
-        }
-
-        recv = stream.Read ( data, 0, data.Length );
-        stringData = Encoding.ASCII.GetString ( data, 0, recv );
-        Debug.Log ( stringData );
-
-        stream.Close ( );
-        serverConn.Close ( );
-
-        return true;
+        return total;
     }
 }
