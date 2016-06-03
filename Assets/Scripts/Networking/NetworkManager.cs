@@ -24,13 +24,16 @@ public class NetworkManager : MonoBehaviour {
         }
 
         if ( hasConnected ) {
-            clientConnection.SendData ( );
+            string serverResponse = clientConnection.SendAndReceiveData ( "tessssssticles spectacles wallets and watch" );
+            Debug.Log ( "Response From Server: " + serverResponse );
         }       
     }
 
     public void Test_CloseConnection() {
-        clientConnection.CloseConnection ( );
-        isInitialConnection = true;
-        hasConnected = false;
+        if (hasConnected) {
+            clientConnection.CloseConnection ( );
+            isInitialConnection = true;
+            hasConnected = false;
+        }
     }
 }

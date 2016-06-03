@@ -1,6 +1,7 @@
 ﻿using UnityEngine;
 using System.Threading;
 using System.Text;
+using System.IO;
 using System.Net;
 using System.Net.Sockets;  
 
@@ -12,7 +13,7 @@ public class ClientTCP {
     private static IPAddress serverIP;
     private static IPEndPoint serverEndpoint;
 
-    private NetworkStream stream;
+    private NetworkStream socketStream;
 
     private int connRetryAttempts = 0;
     private bool isConnected = false;
@@ -43,46 +44,72 @@ public class ClientTCP {
             EstablishConnection ( );
         }
 
-        stream = new NetworkStream ( serverConn );
+        socketStream = new NetworkStream ( serverConn );
+
         return true;
     }
 
     public void CloseConnection( ) {
-        stream.Close ( );
+        socketStream.Close ( );
         serverConn.Shutdown ( SocketShutdown.Both ); // try with this commented out to see what effects it has
         serverConn.Close ( );
+
+        Debug.Log ( "Disconnected from server." );
     }
 
-    public void SendData ( ) {
-        string str = "tessssssticles spectacles wallets and watch";
+    public string SendAndReceiveData ( string data ) {
+        byte[] bufferedData = Encoding.ASCII.GetBytes ( data );
 
-        if ( stream.CanWrite ) {
-            stream.Write ( Encoding.ASCII.GetBytes ( str ) , 0 , str.Length );
-            stream.Flush ( );
-        }
+        WriteStream ( socketStream, bufferedData );
+        byte[] serverReply = ReadStream(socketStream);
+
+        return Encoding.ASCII.GetString ( serverReply );
     }
 
     private Socket OpenTCPSocket() {
         return new Socket ( AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp );
     }
 
-    private int SendDataVar ( Socket conn , byte[] data ) {
-        int total = 0;
-        int sent = 0;
-
-        int bufferSize = data.Length;
-        int dataLeft = bufferSize;
-
-        byte[] datasize = new byte[4];
-        datasize = System.BitConverter.GetBytes ( bufferSize );
-        sent = conn.Send ( datasize );
-
-        while ( total < bufferSize ) {
-            sent = conn.Send ( data , total , dataLeft , 0 );
-            total += sent;
-            dataLeft -= sent;
+    private static void WriteStream(NetworkStream stream, byte[] bufferedData) {
+        if ( stream.CanWrite ) {
+            stream.Write ( bufferedData, 0, bufferedData.Length );
+            stream.Flush ( );
         }
+    }
 
-        return total;
+    private static byte[] ReadStream(NetworkStream stream) {
+        if (stream.CanRead) {
+            int readCount = 0;
+            int startIndex = 0;
+            int totalBytesRead = 0;
+
+            byte[] buffer = new byte[4096];
+            byte[] tmpBuffer = new byte[32];
+
+            using (MemoryStream writer = new MemoryStream()) {
+                do {
+                    readCount++;
+                    
+                    int numBytesRead = stream.Read(tmpBuffer, 0, tmpBuffer.Length);
+                    totalBytesRead += numBytesRead;
+
+                    Debug.Log ( numBytesRead + " " + readCount + " " + totalBytesRead + " " + startIndex);
+                    if ( numBytesRead <= 0 ) {
+                        if ( stream.ReadByte() == -1 ) {
+                            break;
+                        }
+                    }
+
+                    writer.Write ( tmpBuffer, 0, numBytesRead ); // write to the tmpBuffer
+                    System.Buffer.BlockCopy ( tmpBuffer, 0, buffer, startIndex, numBytesRead ); // copy tmpBuffer to buffer
+
+                    startIndex = totalBytesRead;
+                } while ( stream.DataAvailable );
+
+                writer.Close ( );
+                return buffer;
+            }
+        }
+        return new byte[0];
     }
 }
