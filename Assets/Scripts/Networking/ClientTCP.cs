@@ -5,7 +5,8 @@ using System.Net;
 using System.Net.Sockets;  
 
 public class ClientTCP {
-    private const string serverAddr = "10.0.0.76";
+    private const string serverAddr = "127.0.0.1";
+    private const int serverPort = 9080;
 
     private static Socket serverConn;
     private static IPAddress serverIP;
@@ -20,7 +21,7 @@ public class ClientTCP {
     /* Default constructor */
     public ClientTCP () {
         serverIP = IPAddress.Parse ( serverAddr );
-        serverEndpoint = new IPEndPoint ( serverIP , 9080 );
+        serverEndpoint = new IPEndPoint ( serverIP , serverPort );
     }
 
     public bool EstablishConnection ( ) {
