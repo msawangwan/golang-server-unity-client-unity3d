@@ -3,10 +3,13 @@ using System.Collections;
 
 public class NetworkManager : MonoBehaviour {
     private ClientTCP clientConnection;
+    private ClientTCP_async clientConnection_async;
 
 	void Start () {
         clientConnection = new ClientTCP ( );
-	}
+        clientConnection_async = new ClientTCP_async ( );
+
+    }
 
 	void Update () {
 	
@@ -35,5 +38,13 @@ public class NetworkManager : MonoBehaviour {
             isInitialConnection = true;
             hasConnected = false;
         }
+    }
+
+    public void Test_async_connect() {
+        clientConnection_async.Connect ( );
+    }
+    
+    public void Test_async_send() {
+        clientConnection_async.SendData ( "ASYNCHH" );
     }
 }
