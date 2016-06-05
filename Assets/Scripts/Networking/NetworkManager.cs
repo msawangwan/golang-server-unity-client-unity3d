@@ -43,8 +43,24 @@ public class NetworkManager : MonoBehaviour {
     public void Test_async_connect() {
         clientConnection_async.Connect ( );
     }
+
+    public void Test_async_disconnect() {
+        clientConnection_async.Disconnect ( );
+    }
     
     public void Test_async_send() {
-        clientConnection_async.SendData ( "ASYNCHH" );
+        clientConnection_async.SendData ( "CLIENT SENT ASYNCHH" );
+    }
+
+    public void Test_async_sendAndRecv() {
+        string recvd = clientConnection_async.SendAndRecvData ( "CLIENT SEND AND RECVD ASYNC" );
+
+        if ( recvd == null ) {
+            Debug.Log ( "Failed to recv" );
+            return;
+        } else {
+            Debug.Log ( "RECVD FROM SERVER ASYNC: " + recvd );
+            Debug.Log ( "SIZE OF RECVD: " + recvd.Length );
+        }
     }
 }
