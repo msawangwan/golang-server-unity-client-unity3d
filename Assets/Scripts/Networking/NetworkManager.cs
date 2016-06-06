@@ -55,7 +55,7 @@ public class NetworkManager : MonoBehaviour {
     public void Test_async_sendAndRecv() {
         string recvd = clientConnection_async.SendAndRecvData ( "CLIENT SEND AND RECVD ASYNC" );
 
-        if ( recvd == null ) {
+        if ( recvd == string.Empty ) {
             Debug.Log ( "Failed to recv" );
             return;
         } else {

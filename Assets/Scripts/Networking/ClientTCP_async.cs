@@ -2,29 +2,57 @@
 using System;
 using System.IO;
 using System.Text;
+using System.Threading;
 using System.Net;
 using System.Net.Sockets;
 
-public class ClientTCP_async {
-    sealed class ClientConnection {
-        public Socket ClientSocket = null;
-        public StringBuilder SB;
+public enum ClientConnState {
+    None = 0,
+    Connected = 1,
+    Disconnected = 2,
+    Idle = 3,
+    Timeout = 4,
+}
 
-        public int BufferSize;
+public class ClientTCP_async {
+    sealed class ClientState {
+        public Socket WorkSocket = null;
+        public StringBuilder SB;
         public byte[] Buffer;
+
+        private const int bufferSize = 1024;
 
         public string dataString = null;
 
-        public ClientConnection() {
-            BufferSize = 1024;
-
+        public ClientState() {
             SB = new StringBuilder ( );
-            Buffer = new byte[BufferSize];
+            Buffer = new byte[bufferSize];
+        }
+    }
+
+    sealed class Packet {
+        public readonly DateTime TimeStamp;
+        public byte[] PacketBuffer;
+
+        private const int packetSize = 4096;
+
+        public Packet(DateTime timestamp, byte[] buffer) {
+            TimeStamp = timestamp;
+            PacketBuffer = new byte[packetSize];
+            System.Buffer.BlockCopy ( buffer , 0 , PacketBuffer , 0 , packetSize );
+        }
+
+        public void AddToBuffer(byte[] buffer) {
+            System.Buffer.BlockCopy ( buffer , 0 , PacketBuffer , PacketBuffer.Length , packetSize );
         }
     }
 
     private const string serverAddr = "10.0.0.76";
     private const int serverPort = 9080;
+
+    private static ManualResetEvent connectDone = new ManualResetEvent(false);
+    private static ManualResetEvent sendDOne = new ManualResetEvent(false);
+    private static ManualResetEvent receiveDone = new ManualResetEvent(false);
 
     private static Socket serverSocket;
     private static IPAddress serverIP;
@@ -36,7 +64,7 @@ public class ClientTCP_async {
     private bool isConnected = false;
     private bool hasFailedToConnect = false;
 
-    private string recvdData = null;
+    private String recvdData = string.Empty;
 
     /* Default constructor */
     public ClientTCP_async ( ) {
@@ -64,16 +92,16 @@ public class ClientTCP_async {
         }
     }
 
-    public string SendAndRecvData ( string data ) {
+    // instead of returning a string, use an 'action' or some call back to send the data back
+    public void SendAndRecvData ( string data ) {
         try {
             byte[] buffer = Encoding.ASCII.GetBytes(data);
             serverSocket.BeginSend ( buffer , 0 , buffer.Length , SocketFlags.None , new AsyncCallback ( OnSend ) , null );
             try {
-                ClientConnection client = new ClientConnection();
-                client.ClientSocket = serverSocket;
+                ClientState clientState = new ClientState();
+                clientState.WorkSocket = serverSocket;
 
-                serverSocket.BeginReceive ( client.Buffer , 0 , client.BufferSize , SocketFlags.None , new AsyncCallback ( OnReceive ) , client );
-                return recvdData;
+                serverSocket.BeginReceive ( clientState.Buffer , 0 , clientState.Buffer.Length , SocketFlags.None , new AsyncCallback ( OnReceive ) , clientState );
             } catch ( SocketException se ) {
                 Debug.Log ( se );
             } catch ( Exception e ) {
@@ -84,7 +112,6 @@ public class ClientTCP_async {
         } catch ( System.Exception e ) {
             Debug.Log ( e );
         }
-        return null;
     }
 
     private void OnConnect ( IAsyncResult ar ) {
@@ -115,24 +142,24 @@ public class ClientTCP_async {
 
     private void OnReceive ( IAsyncResult ar ) {
         try {
-            ClientConnection client = (ClientConnection) ar.AsyncState;
-            Socket clientSocket = client.ClientSocket;
-
-            int bytesRead = clientSocket.EndReceive(ar);
+            ClientState clientState = (ClientState) ar.AsyncState;
+            int bytesRead = clientState.WorkSocket.EndReceive(ar);
 
             if ( bytesRead > 0 ) {
-                Debug.Log ( "BYTES READ GREATER THAN 0" );
-                Debug.Log ( Encoding.ASCII.GetString ( client.Buffer , 0 , bytesRead ) );
-                client.SB.Append ( Encoding.ASCII.GetString ( client.Buffer , 0 , bytesRead ) );
-                clientSocket.BeginReceive ( client.Buffer , 0 , client.BufferSize , 0 , new AsyncCallback ( OnReceive ) , client );
+                Debug.Log ( "CLIENT ASYNC READ " + Encoding.ASCII.GetString ( clientState.Buffer , 0 , bytesRead ) );
+                clientState.SB.Append ( Encoding.ASCII.GetString ( clientState.Buffer , 0 , bytesRead ) );
+                Debug.Log ( clientState.SB.Length );
+                clientState.WorkSocket.BeginReceive ( clientState.Buffer , 0 , clientState.Buffer.Length , 0 , new AsyncCallback ( OnReceive ) , clientState );
             } else {
-                if ( client.SB.Length > 1 ) {
+                Debug.Log ( "ELSE HIT" );
+                if ( clientState.SB.Length > 1 ) {
                     Debug.Log ( "TO STRING" );
-                    recvdData = client.SB.ToString ( );
+                    recvdData = clientState.SB.ToString ( );
                 }
             }
+        } catch ( ObjectDisposedException ode ) {
+            Debug.Log ( ode );
         } catch ( Exception e ) {
-            recvdData = null;
             Debug.Log ( e );
         }
     }
