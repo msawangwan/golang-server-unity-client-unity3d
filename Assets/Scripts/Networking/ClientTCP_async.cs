@@ -15,38 +15,42 @@ public enum ClientConnState {
 }
 
 public class ClientTCP_async {
-    sealed class ClientState {
-        public Socket WorkSocket = null;
-        public StringBuilder SB;
-        public byte[] Buffer;
-        public int NumReads = 0;
-        public int MsgSize = 0; // TODO: Replace with a Packet Objct
-        private const int bufferSize = 256;
+    /* Maintains socket state between socket reads. */
+    sealed class SocketState {
+        public Socket WorkSocket { get; set; }
+        public Packet DataFrame { get; set; }
 
-        public string dataString = null;
+        public int TotalBytesRead { get; set; }
+        public byte[] Buffer { get; private set; }
 
-        public ClientState() {
-            SB = new StringBuilder ( );
+        private const int bufferSize = 16;
+
+        public SocketState() {
             Buffer = new byte[bufferSize];
+            DataFrame = new Packet ( );
+
+            TotalBytesRead = 0;
         }
     }
 
+    /* Represents a data frame. */
     sealed class Packet {
-        public readonly DateTime TimeStamp;
-        public byte[] PacketBuffer;
+        public byte[] Buffer { get; private set; }
 
         private const int packetSize = 4096;
+        private int bufferPosition = 0;
 
-        public Packet(DateTime timestamp, byte[] buffer) {
-            TimeStamp = timestamp;
-            PacketBuffer = new byte[packetSize];
-            Buffer.BlockCopy ( buffer , 0 , PacketBuffer , 0 , packetSize );
+        public Packet() {
+            Buffer = new byte[packetSize];
         }
 
-        public void AddToBuffer(byte[] buffer) {
-            Buffer.BlockCopy ( buffer , 0 , PacketBuffer , PacketBuffer.Length , packetSize );
+        public void AddData(byte[] buffer, int bufferOffset) {
+            System.Buffer.BlockCopy ( buffer, 0, Buffer, bufferPosition, buffer.Length );
+            bufferPosition += bufferOffset;
         }
     }
+
+    private ClientConnState connectionState = ClientConnState.None;
 
     private const string serverAddr = "127.0.0.1";
     private const int serverPort = 9080;
@@ -54,14 +58,6 @@ public class ClientTCP_async {
     private static Socket serverSocket;
     private static IPAddress serverIP;
     private static IPEndPoint serverEndpoint;
-
-    private NetworkStream socketStream;
-
-    private int connRetryAttempts = 0;
-    private bool isConnected = false;
-    private bool hasFailedToConnect = false;
-
-    private String recvdData = string.Empty;
 
     /* Default constructor */
     public ClientTCP_async ( ) {
@@ -71,17 +67,17 @@ public class ClientTCP_async {
 
     public void Connect ( ) {
         serverSocket = OpenTCPSocket ( );
-        serverSocket.BeginConnect ( serverEndpoint, new AsyncCallback ( OnConnect ), null );
+        serverSocket.BeginConnect ( serverEndpoint, new AsyncCallback ( ConnectCallback ), null );
     }
 
     public void Disconnect() {
-        OnDisconnect ( );
+        DisconnectCallback ( );
     }
 
     public void Send ( string data ) {
         try {
             byte[] buffer = Encoding.ASCII.GetBytes(data);
-            serverSocket.BeginSend ( buffer, 0, buffer.Length, SocketFlags.None, new AsyncCallback ( OnSend ), null );
+            serverSocket.BeginSend ( buffer, 0, buffer.Length, SocketFlags.None, new AsyncCallback ( SendCallback ), null );
         } catch ( SocketException se ) {
             Debug.Log ( se );
         } catch ( Exception e ) {
@@ -91,12 +87,10 @@ public class ClientTCP_async {
 
     public void Listen ( ) {
         try {
-            ClientState clientState = new ClientState();
+            SocketState clientState = new SocketState();
             clientState.WorkSocket = serverSocket;
 
-            recvdData = string.Empty;
-
-            serverSocket.BeginReceive ( clientState.Buffer, 0, clientState.Buffer.Length, SocketFlags.None, new AsyncCallback ( OnReceive ), clientState );
+            serverSocket.BeginReceive ( clientState.Buffer, 0, clientState.Buffer.Length, SocketFlags.None, new AsyncCallback ( RecvCallback ), clientState );
         } catch ( SocketException se ) {
             Debug.Log ( se );
         } catch ( Exception e ) {
@@ -104,25 +98,25 @@ public class ClientTCP_async {
         }
     }
 
-    private void OnConnect ( IAsyncResult ar ) {
+    private void ConnectCallback ( IAsyncResult ar ) {
         try {
             serverSocket.EndConnect ( ar );
-            isConnected = true;
+            connectionState = ClientConnState.Connected;
         } catch ( Exception e ) {
             Debug.Log ( e );
         }
     }
 
-    private void OnDisconnect ( ) {
+    private void DisconnectCallback ( ) {
         try {
             serverSocket.Close ( );
-            isConnected = false;
+            connectionState = ClientConnState.Disconnected;
         } catch ( Exception e ) {
-            Debug.Log ( "[Client:OnDisconnect] Error on disconnect: " + e );
+            Debug.Log ( "[Client:DisconnectCallback] Error on disconnect: " + e );
         }
     }
 
-    private void OnSend ( IAsyncResult ar ) {
+    private void SendCallback ( IAsyncResult ar ) {
         try {
             serverSocket.EndSend ( ar );
         } catch ( Exception e ) {
@@ -130,97 +124,69 @@ public class ClientTCP_async {
         }
     }
 
-    private void OnReceive ( IAsyncResult ar ) {
-       // recvdData = String.Empty;
+    private void RecvCallback ( IAsyncResult ar ) {
+        SocketState socketState = (SocketState) ar.AsyncState;
+
         try {
-            ClientState clientState = (ClientState) ar.AsyncState;
-            int bytesRead = clientState.WorkSocket.EndReceive(ar);
-            clientState.MsgSize += bytesRead;
-            Debug.Log ( "[Client:OnReceive] bytesRead = " + bytesRead );
-            Debug.Log ( "[Client:OnReceive] numReads = " + clientState.NumReads );
-            Debug.Log ( "[Client:OnReceive] size of clientState stringbuilder: " + clientState.SB.Length );
+            int bytesRead = socketState.WorkSocket.EndReceive(ar); // read bytes from strem
+            bool isDataFrame = false;
 
+            socketState.TotalBytesRead += bytesRead;
 
+            if ( bytesRead > 0 ) {
+                int bufferSize = bytesRead;
+                string currentBuffer = Encoding.ASCII.GetString ( socketState.Buffer );
 
-            if ( clientState.MsgSize > 216) {
-                Debug.Log ( "[Client:OnReceive] From Server: " + clientState.SB );
-                Debug.Log ( "[Client:OnReceive] From Server: <EOM>" );
-                //clientState.WorkSocket.EndReceive ( ar );
+                for ( int i = 0; i < currentBuffer.Length; i++ ) { // read through the buffer and look for delimiting char, '\n'
+                    if ( currentBuffer[i] == '\n' ) {
+                        isDataFrame = true;
+                        bufferSize = i + 1;
+                        break;
+                    }
+                }
 
-                clientState = new ClientState ( );
-                clientState.WorkSocket = serverSocket;
-                clientState.WorkSocket.BeginReceive ( clientState.Buffer, 0, clientState.Buffer.Length, 0, new AsyncCallback ( OnReceive ), clientState );
+                if ( isDataFrame ) { // if we reached a delimiting char, copy any remaining bytes before into the current DataFrame
+                    byte[] temp = new byte[bufferSize];
+
+                    for ( int i = 0; i < bufferSize; i++ ) {
+                        temp[i] = socketState.Buffer[i];
+                    }
+
+                    socketState.DataFrame.AddData ( temp, bufferSize );
+                } else { // else just copy the entire buffer
+                    socketState.DataFrame.AddData ( socketState.Buffer, bufferSize );
+                }
+
+                Debug.Log ( Encoding.ASCII.GetString ( socketState.DataFrame.Buffer ) ); // print for debug
+
+                if ( isDataFrame ) { // if we reached a delimiting char, reset client state and copy any remaining bytes from the previous buffer state into new buffer state
+                    int bufferRemainder = socketState.Buffer.Length - bufferSize;
+                    byte[] temp = new byte[bufferRemainder];
+
+                    for ( int i = 0; i < bufferRemainder; i++ ) {
+                        temp[i] = socketState.Buffer[bufferSize + i];
+                    }
+
+                    // SEND DATAFRAME OFF ...
+
+                    Debug.Log ( "[Client:RecvCallback] <EOM> New DataFrame <EOM>" );
+                    socketState = new SocketState ( );
+                    socketState.WorkSocket = serverSocket;
+
+                    socketState.DataFrame.AddData ( temp, bufferRemainder );
+                }
             }
 
-            else if ( bytesRead > 0 ) {
-                clientState.NumReads++;               
-                clientState.SB.Append ( Encoding.ASCII.GetString ( clientState.Buffer , 0 , bytesRead ) );
-                //Debug.Log ( "[Client:OnReceive] data in buffer: " + Encoding.ASCII.GetString ( clientState.Buffer, 0, bytesRead ) );              
-                clientState.WorkSocket.BeginReceive ( clientState.Buffer , 0 , clientState.Buffer.Length , 0 , new AsyncCallback ( OnReceive ) , clientState );
-            } else if (bytesRead == 0) {
-                Debug.Log ( "[] Recieved Zero Bytes" );
+            if ( bytesRead == 0 ) { // if no bytes read, the connection is over, todo: handle
+                Debug.Log ( "[Client:RecvCallback] No Bytes Read" );
+            } else { // else keep listening for more
+                socketState.WorkSocket.BeginReceive ( socketState.Buffer, 0, socketState.Buffer.Length, 0, new AsyncCallback ( RecvCallback ), socketState );
             }
-
-           // if ( clientState.SB.Length > 1 ) {
-          //      Debug.Log ( "[Client:OnReceive] adding to string builder ..." );
-          //      recvdData += clientState.SB.ToString ( );
-           // }
-
         } catch ( ObjectDisposedException ode ) {
             Debug.Log ( ode );
         } catch ( Exception e ) {
             Debug.Log ( e );
         }
-    }
-
-    private void OnReceive_Naive ( IAsyncResult ar ) {
-        try {
-            byte[] readBuffer = new byte[1024];
-            Socket remoteConn = (Socket) ar.AsyncState;
-            int recv = serverSocket.EndReceive ( ar );
-            string receivedData = Encoding.ASCII.GetString(readBuffer, 0, recv);
-            Debug.Log ( "ON RECIEVE " + receivedData );
-            recvdData = receivedData;
-        } catch ( Exception e ) {
-            recvdData = null;
-            Debug.Log ( e );
-        }
-    }
-
-    private static byte[] ReadStream ( NetworkStream stream ) {
-        if ( stream.CanRead ) {
-            int readCount = 0;
-            int startIndex = 0;
-            int totalBytesRead = 0;
-
-            byte[] buffer = new byte[4096];
-            byte[] tmpBuffer = new byte[32];
-
-            using ( MemoryStream writer = new MemoryStream ( ) ) {
-                do {
-                    readCount++;
-
-                    int numBytesRead = stream.Read(tmpBuffer, 0, tmpBuffer.Length);
-                    totalBytesRead += numBytesRead;
-
-                    Debug.Log ( numBytesRead + " " + readCount + " " + totalBytesRead + " " + startIndex );
-                    if ( numBytesRead <= 0 ) {
-                        if ( stream.ReadByte ( ) == -1 ) {
-                            break;
-                        }
-                    }
-
-                    writer.Write ( tmpBuffer , 0 , numBytesRead ); // write to the tmpBuffer
-                    Buffer.BlockCopy ( tmpBuffer , 0 , buffer , startIndex , numBytesRead ); // copy tmpBuffer to buffer
-
-                    startIndex = totalBytesRead;
-                } while ( stream.DataAvailable );
-
-                writer.Close ( );
-                return buffer;
-            }
-        }
-        return new byte[0];
     }
 
     private static Socket OpenTCPSocket ( ) {
