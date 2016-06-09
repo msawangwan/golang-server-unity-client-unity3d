@@ -19,8 +19,9 @@ public class ClientTCP_async {
         public Socket WorkSocket = null;
         public StringBuilder SB;
         public byte[] Buffer;
-
-        private const int bufferSize = 1024;
+        public int NumReads = 0;
+        public int MsgSize = 0; // TODO: Replace with a Packet Objct
+        private const int bufferSize = 256;
 
         public string dataString = null;
 
@@ -39,20 +40,16 @@ public class ClientTCP_async {
         public Packet(DateTime timestamp, byte[] buffer) {
             TimeStamp = timestamp;
             PacketBuffer = new byte[packetSize];
-            System.Buffer.BlockCopy ( buffer , 0 , PacketBuffer , 0 , packetSize );
+            Buffer.BlockCopy ( buffer , 0 , PacketBuffer , 0 , packetSize );
         }
 
         public void AddToBuffer(byte[] buffer) {
-            System.Buffer.BlockCopy ( buffer , 0 , PacketBuffer , PacketBuffer.Length , packetSize );
+            Buffer.BlockCopy ( buffer , 0 , PacketBuffer , PacketBuffer.Length , packetSize );
         }
     }
 
-    private const string serverAddr = "10.0.0.76";
+    private const string serverAddr = "127.0.0.1";
     private const int serverPort = 9080;
-
-    private static ManualResetEvent connectDone = new ManualResetEvent(false);
-    private static ManualResetEvent sendDOne = new ManualResetEvent(false);
-    private static ManualResetEvent receiveDone = new ManualResetEvent(false);
 
     private static Socket serverSocket;
     private static IPAddress serverIP;
@@ -81,7 +78,7 @@ public class ClientTCP_async {
         OnDisconnect ( );
     }
 
-    public void SendData ( string data ) {
+    public void Send ( string data ) {
         try {
             byte[] buffer = Encoding.ASCII.GetBytes(data);
             serverSocket.BeginSend ( buffer, 0, buffer.Length, SocketFlags.None, new AsyncCallback ( OnSend ), null );
@@ -92,24 +89,17 @@ public class ClientTCP_async {
         }
     }
 
-    // instead of returning a string, use an 'action' or some call back to send the data back
-    public void SendAndRecvData ( string data ) {
+    public void Listen ( ) {
         try {
-            byte[] buffer = Encoding.ASCII.GetBytes(data);
-            serverSocket.BeginSend ( buffer , 0 , buffer.Length , SocketFlags.None , new AsyncCallback ( OnSend ) , null );
-            try {
-                ClientState clientState = new ClientState();
-                clientState.WorkSocket = serverSocket;
+            ClientState clientState = new ClientState();
+            clientState.WorkSocket = serverSocket;
 
-                serverSocket.BeginReceive ( clientState.Buffer , 0 , clientState.Buffer.Length , SocketFlags.None , new AsyncCallback ( OnReceive ) , clientState );
-            } catch ( SocketException se ) {
-                Debug.Log ( se );
-            } catch ( Exception e ) {
-                Debug.Log ( e );
-            }
+            recvdData = string.Empty;
+
+            serverSocket.BeginReceive ( clientState.Buffer, 0, clientState.Buffer.Length, SocketFlags.None, new AsyncCallback ( OnReceive ), clientState );
         } catch ( SocketException se ) {
             Debug.Log ( se );
-        } catch ( System.Exception e ) {
+        } catch ( Exception e ) {
             Debug.Log ( e );
         }
     }
@@ -128,7 +118,7 @@ public class ClientTCP_async {
             serverSocket.Close ( );
             isConnected = false;
         } catch ( Exception e ) {
-            Debug.Log ( e );
+            Debug.Log ( "[Client:OnDisconnect] Error on disconnect: " + e );
         }
     }
 
@@ -141,22 +131,41 @@ public class ClientTCP_async {
     }
 
     private void OnReceive ( IAsyncResult ar ) {
+       // recvdData = String.Empty;
         try {
             ClientState clientState = (ClientState) ar.AsyncState;
             int bytesRead = clientState.WorkSocket.EndReceive(ar);
+            clientState.MsgSize += bytesRead;
+            Debug.Log ( "[Client:OnReceive] bytesRead = " + bytesRead );
+            Debug.Log ( "[Client:OnReceive] numReads = " + clientState.NumReads );
+            Debug.Log ( "[Client:OnReceive] size of clientState stringbuilder: " + clientState.SB.Length );
 
-            if ( bytesRead > 0 ) {
-                Debug.Log ( "CLIENT ASYNC READ " + Encoding.ASCII.GetString ( clientState.Buffer , 0 , bytesRead ) );
-                clientState.SB.Append ( Encoding.ASCII.GetString ( clientState.Buffer , 0 , bytesRead ) );
-                Debug.Log ( clientState.SB.Length );
-                clientState.WorkSocket.BeginReceive ( clientState.Buffer , 0 , clientState.Buffer.Length , 0 , new AsyncCallback ( OnReceive ) , clientState );
-            } else {
-                Debug.Log ( "ELSE HIT" );
-                if ( clientState.SB.Length > 1 ) {
-                    Debug.Log ( "TO STRING" );
-                    recvdData = clientState.SB.ToString ( );
-                }
+
+
+            if ( clientState.MsgSize > 216) {
+                Debug.Log ( "[Client:OnReceive] From Server: " + clientState.SB );
+                Debug.Log ( "[Client:OnReceive] From Server: <EOM>" );
+                //clientState.WorkSocket.EndReceive ( ar );
+
+                clientState = new ClientState ( );
+                clientState.WorkSocket = serverSocket;
+                clientState.WorkSocket.BeginReceive ( clientState.Buffer, 0, clientState.Buffer.Length, 0, new AsyncCallback ( OnReceive ), clientState );
             }
+
+            else if ( bytesRead > 0 ) {
+                clientState.NumReads++;               
+                clientState.SB.Append ( Encoding.ASCII.GetString ( clientState.Buffer , 0 , bytesRead ) );
+                //Debug.Log ( "[Client:OnReceive] data in buffer: " + Encoding.ASCII.GetString ( clientState.Buffer, 0, bytesRead ) );              
+                clientState.WorkSocket.BeginReceive ( clientState.Buffer , 0 , clientState.Buffer.Length , 0 , new AsyncCallback ( OnReceive ) , clientState );
+            } else if (bytesRead == 0) {
+                Debug.Log ( "[] Recieved Zero Bytes" );
+            }
+
+           // if ( clientState.SB.Length > 1 ) {
+          //      Debug.Log ( "[Client:OnReceive] adding to string builder ..." );
+          //      recvdData += clientState.SB.ToString ( );
+           // }
+
         } catch ( ObjectDisposedException ode ) {
             Debug.Log ( ode );
         } catch ( Exception e ) {
