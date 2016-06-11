@@ -3,6 +3,7 @@ using System.Collections;
 
 public class NetworkManager : MonoBehaviour {
     private ClientTCP clientConnection_async;
+    private Player player;
 
 	void Start () {
         clientConnection_async = new ClientTCP ( );
