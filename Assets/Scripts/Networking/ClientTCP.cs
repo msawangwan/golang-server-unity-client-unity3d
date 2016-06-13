@@ -54,7 +54,7 @@ public class ClientTCP {
 
     private ClientConnState connectionState = ClientConnState.None;
 
-    private const string serverAddr = "127.0.0.1";
+    private const string serverAddr = "10.0.0.76";
     private const int serverPort = 9080;
 
     private static Socket serverSocket;
@@ -76,9 +76,10 @@ public class ClientTCP {
         DisconnectCallback ( );
     }
 
-    public void Send ( string data ) {
+    public void Send ( byte[] buffer ) {
         try {
-            byte[] buffer = Encoding.ASCII.GetBytes(data);
+            Debug.Log ( buffer.Length );
+            Debug.Log ( BitConverter.ToInt32 ( buffer , 0 ) );
             serverSocket.BeginSend ( buffer, 0, buffer.Length, SocketFlags.None, new AsyncCallback ( SendCallback ), null );
         } catch ( SocketException se ) {
             Debug.Log ( se );

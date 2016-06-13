@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 
 namespace madMeesh.Cards {
-    public class Deck : MonoBehaviour {        
+    public class Deck {        
         public Card this[int i] {
             get {
                 if ( i >= 0 && i < deck.Length ) {

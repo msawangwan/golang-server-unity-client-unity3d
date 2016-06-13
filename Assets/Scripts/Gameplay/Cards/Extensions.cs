@@ -2,7 +2,7 @@
 using madMeesh.Cards;
 using System.Collections;
 namespace madMeesh.Cards {
-    public static class CardExtensions {
+    public static class Extensions {
         public static byte[] CardSerializer ( this Card c ) {
             int cardColor = (int) c.CardColor;
             int cardSuite = (int) c.CardSuit;
@@ -26,12 +26,13 @@ namespace madMeesh.Cards {
         }
 
         public static byte[] DeckSerializer ( this Deck d ) {
-            byte[] deckData = new byte[(4 * d.Size)];
+            byte[] deckData = new byte[(16 * d.Size)];
             int offset = 0;
 
             for ( int i = 0; i < d.Size; i++ ) {
                 if ( d[i] != null ) {
                     byte[] cardData = d[i].CardSerializer();
+                    Debug.Log ( "carddata " + cardData );
                     System.Buffer.BlockCopy ( cardData, 0, deckData, offset, cardData.Length );
                     offset += cardData.Length;
                 }

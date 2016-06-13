@@ -1,4 +1,5 @@
 ﻿using UnityEngine;
+using madMeesh.Cards;
 using System.Collections;
 
 public class NetworkManager : MonoBehaviour {
@@ -7,6 +8,7 @@ public class NetworkManager : MonoBehaviour {
 
 	void Start () {
         clientConnection_async = new ClientTCP ( );
+        player = FindObjectOfType<Player> ( );
     }
 
     bool isInitialConnection = true;
@@ -31,6 +33,10 @@ public class NetworkManager : MonoBehaviour {
     }
     
     public void Test_async_send() {
-        clientConnection_async.Send ( "CLIENT SENT ASYNCHH" );
+        Card card = player.deck.Draw ( );
+        player.deck.Add ( card );
+        byte[] d = player.deck.DeckSerializer ( );
+
+        clientConnection_async.Send ( d );
     }
 }
