@@ -12,7 +12,7 @@ namespace madMeesh.Cards {
             byte[] suitData = SerializeInt(cardSuite);
             byte[] valueData = SerializeInt(cardValue);
 
-            byte[] cardData = new byte[16];
+            byte[] cardData = new byte[12];
 
             int offset = 0;
             System.Buffer.BlockCopy ( colorData, 0, cardData, offset, colorData.Length );
@@ -26,23 +26,25 @@ namespace madMeesh.Cards {
         }
 
         public static byte[] DeckSerializer ( this Deck d ) {
-            byte[] deckData = new byte[(16 * d.Size)];
+            byte[] deckData = new byte[(12 * d.Size)];
             int offset = 0;
 
             for ( int i = 0; i < d.Size; i++ ) {
                 if ( d[i] != null ) {
                     byte[] cardData = d[i].CardSerializer();
-                    Debug.Log ( "carddata " + cardData );
+                    Debug.Log ( "carddata: " + System.BitConverter.ToString(cardData) );
                     System.Buffer.BlockCopy ( cardData, 0, deckData, offset, cardData.Length );
                     offset += cardData.Length;
                 }
             }
 
+            Debug.Log ( "DECKDATA: " + System.BitConverter.ToString ( deckData ) );
             return deckData;
         }
 
         public static byte[] SerializeInt ( int obj ) {
-            return System.BitConverter.GetBytes ( obj );
+            int readyForNetwork = System.Net.IPAddress.HostToNetworkOrder ( obj );
+            return System.BitConverter.GetBytes ( readyForNetwork );
         }
     }
 }

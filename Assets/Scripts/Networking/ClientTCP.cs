@@ -54,7 +54,8 @@ public class ClientTCP {
 
     private ClientConnState connectionState = ClientConnState.None;
 
-    private const string serverAddr = "10.0.0.76";
+    //private const string serverAddr = "10.0.0.76";
+    private const string serverAddr = "127.0.0.1";
     private const int serverPort = 9080;
 
     private static Socket serverSocket;
