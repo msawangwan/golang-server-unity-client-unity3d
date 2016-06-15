@@ -24,11 +24,14 @@ public class ClientTCP {
 
         public int TotalBytesRead { get; set; }
         public byte[] Buffer { get; private set; }
+        public byte[] FrameSize { get; set; }
 
         private const int bufferSize = 16;
 
         public SocketState() {
             Buffer = new byte[bufferSize];
+            FrameSize = new byte[4];
+
             DataFrame = new Packet ( );
 
             TotalBytesRead = 0;
@@ -38,12 +41,14 @@ public class ClientTCP {
     /* Represents a data frame. */
     sealed class Packet {
         public byte[] Buffer { get; private set; }
+        public int FrameSize { get; set; }
 
         private const int packetSize = 4096;
         private int bufferPosition = 0;
 
         public Packet() {
             Buffer = new byte[packetSize];
+            FrameSize = 0;
         }
 
         public void AddData(byte[] buffer, int bufferOffset) {
@@ -79,8 +84,6 @@ public class ClientTCP {
 
     public void Send ( byte[] buffer ) {
         try {
-            Debug.Log ( buffer.Length );
-            Debug.Log ( BitConverter.ToInt32 ( buffer , 0 ) );
             serverSocket.BeginSend ( buffer, 0, buffer.Length, SocketFlags.None, new AsyncCallback ( SendCallback ), null );
         } catch ( SocketException se ) {
             Debug.Log ( se );
@@ -94,7 +97,7 @@ public class ClientTCP {
             SocketState clientState = new SocketState();
             clientState.WorkSocket = serverSocket;
 
-            serverSocket.BeginReceive ( clientState.Buffer, 0, clientState.Buffer.Length, SocketFlags.None, new AsyncCallback ( RecvCallback ), clientState );
+            serverSocket.BeginReceive ( clientState.FrameSize, 0, clientState.FrameSize.Length, SocketFlags.None, new AsyncCallback ( RecvCallback ), clientState ); // wait for incoming data
         } catch ( SocketException se ) {
             Debug.Log ( se );
         } catch ( Exception e ) {
@@ -129,6 +132,51 @@ public class ClientTCP {
     }
 
     private void RecvCallback ( IAsyncResult ar ) {
+        SocketState socketState = (SocketState) ar.AsyncState;
+
+        try {
+            int bytesRead = socketState.WorkSocket.EndReceive(ar); // read bytes from stream
+
+            if ( bytesRead <= 0 ) {
+                Debug.Log ( "Zero bytes recvd" );
+                // handle ...
+            }
+
+            if ( bytesRead <= socketState.FrameSize.Length && socketState.DataFrame.FrameSize == 0 ) { // check for message size first
+                Debug.Log ( "first read ... " + bytesRead );
+                int encodedSize = BitConverter.ToInt32(socketState.FrameSize, 0);
+                socketState.DataFrame.FrameSize = IPAddress.NetworkToHostOrder(encodedSize);
+                serverSocket.BeginReceive ( socketState.Buffer, 0, socketState.Buffer.Length, 0, new AsyncCallback ( RecvCallback ), socketState );
+            }
+
+            socketState.TotalBytesRead += bytesRead;
+
+           // Debug.Log ( "total read " + socketState.TotalBytesRead );
+           // Debug.Log ( "current bytes read: " + bytesRead );
+            if ( socketState.TotalBytesRead >= socketState.DataFrame.FrameSize ) {
+                Debug.Log ( "RECVD: " + BitConverter.ToString ( socketState.DataFrame.Buffer ) );
+                Debug.Log ( "[Client:RecvCallback] <EOM> New DataFrame <EOM>" );
+                SocketState newSocket = new SocketState ( );
+                newSocket.WorkSocket = serverSocket;
+                serverSocket.BeginReceive ( newSocket.FrameSize, 0, newSocket.FrameSize.Length, SocketFlags.None, new AsyncCallback ( RecvCallback ), newSocket );
+            } else {
+                //serverSocket.BeginReceive ( socketState.FrameSize, 0, socketState.FrameSize.Length, SocketFlags.None, new AsyncCallback ( RecvCallback ), socketState );
+                //  socketState.DataFrame.AddData ( socketState.Buffer, bytesRead );
+                // socketState.TotalBytesRead += bytesRead;
+                socketState.DataFrame.AddData ( socketState.Buffer, bytesRead );
+                serverSocket.BeginReceive ( socketState.Buffer, 0, socketState.Buffer.Length, 0, new AsyncCallback ( RecvCallback ), socketState );
+                //socketState.TotalBytesRead += bytesRead;
+            }
+            
+            //serverSocket.BeginReceive ( socketState.Buffer, 0, socketState.Buffer.Length, 0, new AsyncCallback ( RecvCallback ), socketState );
+        } catch ( ObjectDisposedException ode ) {
+            Debug.Log ( ode );
+        } catch ( Exception e ) {
+            Debug.Log ( e );
+        }
+    }
+
+    private void RecvCallback_delimted ( IAsyncResult ar ) {
         SocketState socketState = (SocketState) ar.AsyncState;
 
         try {
@@ -184,7 +232,7 @@ public class ClientTCP {
             if ( bytesRead == 0 ) { // if no bytes read, the connection is over, todo: handle
                 Debug.Log ( "[Client:RecvCallback] No Bytes Read" );
             } else { // else keep listening for more
-                socketState.WorkSocket.BeginReceive ( socketState.Buffer, 0, socketState.Buffer.Length, 0, new AsyncCallback ( RecvCallback ), socketState );
+                socketState.WorkSocket.BeginReceive ( socketState.Buffer, 0, socketState.Buffer.Length, 0, new AsyncCallback ( RecvCallback ), socketState ); // THIS SHOULD BE SERVER SOCKET INSTEAD OF THE STATE SOCKET
             }
         } catch ( ObjectDisposedException ode ) {
             Debug.Log ( ode );
