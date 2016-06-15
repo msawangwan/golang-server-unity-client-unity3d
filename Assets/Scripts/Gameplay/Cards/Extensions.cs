@@ -32,7 +32,6 @@ namespace madMeesh.Cards {
             for ( int i = 0; i < d.Size; i++ ) {
                 if ( d[i] != null ) {
                     byte[] cardData = d[i].CardSerializer();
-                    Debug.Log ( "carddata: " + System.BitConverter.ToString(cardData) );
                     System.Buffer.BlockCopy ( cardData, 0, deckData, offset, cardData.Length );
                     offset += cardData.Length;
                 }

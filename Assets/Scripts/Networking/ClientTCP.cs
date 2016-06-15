@@ -68,6 +68,7 @@ public class ClientTCP {
             IsFrameSizeKnown = false;
         }
 
+        /* Helper method to reset state to defaults. */
         public void InitState() {
             FrameSize = new byte[4];
 
@@ -81,6 +82,7 @@ public class ClientTCP {
         }
     }
 
+    /* Subscribers of this event will be notified when the client recvs a complete dataframe packet. */
     public Action<RecvdDataFrameEventArgs> RaiseDataFrameRecvd { get; set; }
 
     private const string serverAddr = "127.0.0.1";
