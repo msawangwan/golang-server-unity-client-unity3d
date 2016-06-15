@@ -8,7 +8,7 @@ using System.Net.Sockets;
 /// Asynchronous TCP Client.
 /// </summary>
 
-public enum ClientConnState {
+public enum ClientConnStatus {
     None = 0,
     Connected = 1,
     Disconnected = 2,
@@ -16,50 +16,73 @@ public enum ClientConnState {
     Timeout = 4,
 }
 
+public enum DataFrameStatus {
+    None = 0,
+    Normal = 1,
+    KeepAlive = 2,
+    Malformed = 3,
+}
+
+/* This is the argument passed on receiving an entire dataframe. */
+public class RecvdDataFrameEventArgs {
+    public DataFramePacket Data { get; private set; }
+    public DataFrameStatus Status { get; private set; }
+
+    public RecvdDataFrameEventArgs ( DataFramePacket dfp, DataFrameStatus dfs ) {
+        Data = dfp;
+        Status = dfs;
+    }
+}
+
+/* Dataframe wrapper class. */
+public class DataFramePacket {
+    public byte[] Frame { get; private set; }
+
+    /* Default constuctor. */
+    public DataFramePacket ( int packetSize ) {
+        Frame = new byte[packetSize];
+    }
+}
+
 public class ClientTCP {
     /* Maintains socket state between socket reads. */
     sealed class SocketState {
-        public Socket WorkSocket { get; set; }
-        public Packet DataFrame { get; set; }
+        public Socket ReaderSocket { get; set; }
+        public DataFramePacket DataFrame { get; set; }
 
-        public int TotalBytesRead { get; set; }
-        public byte[] Buffer { get; private set; }
         public byte[] FrameSize { get; set; }
+        public int ExpectedFrameSize { get; set; }
+        public int TotalBytesRead { get; set; }
 
-        private const int bufferSize = 16;
+        public bool IsFrameSizeKnown { get; set; }
 
-        public SocketState() {
-            Buffer = new byte[bufferSize];
+        /* Default constuctor. */
+        public SocketState () {
             FrameSize = new byte[4];
 
-            DataFrame = new Packet ( );
+            DataFrame = null;
 
+            ExpectedFrameSize = -1;
             TotalBytesRead = 0;
+
+            IsFrameSizeKnown = false;
+        }
+
+        public void InitState() {
+            FrameSize = new byte[4];
+
+            ReaderSocket = null;
+            DataFrame = null;
+
+            ExpectedFrameSize = -1;
+            TotalBytesRead = 0;
+
+            IsFrameSizeKnown = false;
         }
     }
 
-    /* Represents a data frame. */
-    sealed class Packet {
-        public byte[] Buffer { get; private set; }
-        public int FrameSize { get; set; }
+    public Action<RecvdDataFrameEventArgs> RaiseDataFrameRecvd { get; set; }
 
-        private const int packetSize = 4096;
-        private int bufferPosition = 0;
-
-        public Packet() {
-            Buffer = new byte[packetSize];
-            FrameSize = 0;
-        }
-
-        public void AddData(byte[] buffer, int bufferOffset) {
-            System.Buffer.BlockCopy ( buffer, 0, Buffer, bufferPosition, buffer.Length );
-            bufferPosition += bufferOffset;
-        }
-    }
-
-    private ClientConnState connectionState = ClientConnState.None;
-
-    //private const string serverAddr = "10.0.0.76";
     private const string serverAddr = "127.0.0.1";
     private const int serverPort = 9080;
 
@@ -67,7 +90,9 @@ public class ClientTCP {
     private static IPAddress serverIP;
     private static IPEndPoint serverEndpoint;
 
-    /* Default constructor */
+    private ClientConnStatus connectionState = ClientConnStatus.None;
+
+    /* Default constructor. */
     public ClientTCP ( ) {
         serverIP = IPAddress.Parse ( serverAddr );
         serverEndpoint = new IPEndPoint ( serverIP, serverPort );
@@ -75,16 +100,17 @@ public class ClientTCP {
 
     public void Connect ( ) {
         serverSocket = OpenTCPSocket ( );
-        serverSocket.BeginConnect ( serverEndpoint, new AsyncCallback ( ConnectCallback ), null );
+        serverSocket.BeginConnect ( serverEndpoint, new AsyncCallback ( OnConnect ), null );
     }
 
     public void Disconnect() {
-        DisconnectCallback ( );
+        OnDisconnect ( );
     }
 
-    public void Send ( byte[] buffer ) {
+    public void SendAsync ( byte[] buffer ) {
         try {
-            serverSocket.BeginSend ( buffer, 0, buffer.Length, SocketFlags.None, new AsyncCallback ( SendCallback ), null );
+            serverSocket.BeginSend ( buffer, 0, buffer.Length, 
+                SocketFlags.None, new AsyncCallback ( OnSend ), null );
         } catch ( SocketException se ) {
             Debug.Log ( se );
         } catch ( Exception e ) {
@@ -92,12 +118,15 @@ public class ClientTCP {
         }
     }
 
-    public void Listen ( ) {
+    public void ListenAndRecvAsync ( ) {
         try {
             SocketState clientState = new SocketState();
-            clientState.WorkSocket = serverSocket;
+            clientState.ReaderSocket = serverSocket;
 
-            serverSocket.BeginReceive ( clientState.FrameSize, 0, clientState.FrameSize.Length, SocketFlags.None, new AsyncCallback ( RecvCallback ), clientState ); // wait for incoming data
+            serverSocket.BeginReceive ( clientState.FrameSize, 0,
+                clientState.FrameSize.Length,
+                SocketFlags.None, new AsyncCallback ( OnRecv ),
+                clientState ); // wait for incoming data
         } catch ( SocketException se ) {
             Debug.Log ( se );
         } catch ( Exception e ) {
@@ -105,25 +134,25 @@ public class ClientTCP {
         }
     }
 
-    private void ConnectCallback ( IAsyncResult ar ) {
+    private void OnConnect ( IAsyncResult ar ) {
         try {
             serverSocket.EndConnect ( ar );
-            connectionState = ClientConnState.Connected;
+            connectionState = ClientConnStatus.Connected;
         } catch ( Exception e ) {
             Debug.Log ( e );
         }
     }
 
-    private void DisconnectCallback ( ) {
+    private void OnDisconnect ( ) {
         try {
             serverSocket.Close ( );
-            connectionState = ClientConnState.Disconnected;
+            connectionState = ClientConnStatus.Disconnected;
         } catch ( Exception e ) {
-            Debug.Log ( "[Client:DisconnectCallback] Error on disconnect: " + e );
+            Debug.Log ( "[Client:OnDisconnect] Error on disconnect: " + e );
         }
     }
 
-    private void SendCallback ( IAsyncResult ar ) {
+    private void OnSend ( IAsyncResult ar ) {
         try {
             serverSocket.EndSend ( ar );
         } catch ( Exception e ) {
@@ -131,108 +160,67 @@ public class ClientTCP {
         }
     }
 
-    private void RecvCallback ( IAsyncResult ar ) {
-        SocketState socketState = (SocketState) ar.AsyncState;
-
+    private void OnRecv ( IAsyncResult ar ) {
+        SocketState socketState = ar.AsyncState as SocketState;
         try {
-            int bytesRead = socketState.WorkSocket.EndReceive(ar); // read bytes from stream
+            int bytesRead = socketState.ReaderSocket.EndReceive(ar); // read bytes from stream
+            socketState.TotalBytesRead += bytesRead; // keep track of how many bytes we've read from the stream for the current dataframe
 
-            if ( bytesRead <= 0 ) {
-                Debug.Log ( "Zero bytes recvd" );
-                // handle ...
-            }
+            if ( socketState.ExpectedFrameSize == -1 ) { // get the data frame size
+                if ( bytesRead <= 0 )
+                    Debug.Log ( "Zero bytes recvd" ); // TODO: handle ...with exception?
 
-            if ( bytesRead <= socketState.FrameSize.Length && socketState.DataFrame.FrameSize == 0 ) { // check for message size first
-                Debug.Log ( "first read ... " + bytesRead );
-                int encodedSize = BitConverter.ToInt32(socketState.FrameSize, 0);
-                socketState.DataFrame.FrameSize = IPAddress.NetworkToHostOrder(encodedSize);
-                serverSocket.BeginReceive ( socketState.Buffer, 0, socketState.Buffer.Length, 0, new AsyncCallback ( RecvCallback ), socketState );
-            }
+                if ( socketState.TotalBytesRead == 4 ) { // we filled the 4-byte dataframe size buffer
+                    int nbo = BitConverter.ToInt32(socketState.FrameSize, 0); // read the 4-byte buffer
+                    socketState.ExpectedFrameSize = IPAddress.NetworkToHostOrder ( nbo ); // convert the read from network byte order to little e
 
-            socketState.TotalBytesRead += bytesRead;
+                    if ( socketState.ExpectedFrameSize < 0 )
+                        Debug.Log ( "Invalid Framesize" ); // TODO: handle ...                  
 
-           // Debug.Log ( "total read " + socketState.TotalBytesRead );
-           // Debug.Log ( "current bytes read: " + bytesRead );
-            if ( socketState.TotalBytesRead >= socketState.DataFrame.FrameSize ) {
-                Debug.Log ( "RECVD: " + BitConverter.ToString ( socketState.DataFrame.Buffer ) );
-                Debug.Log ( "[Client:RecvCallback] <EOM> New DataFrame <EOM>" );
-                SocketState newSocket = new SocketState ( );
-                newSocket.WorkSocket = serverSocket;
-                serverSocket.BeginReceive ( newSocket.FrameSize, 0, newSocket.FrameSize.Length, SocketFlags.None, new AsyncCallback ( RecvCallback ), newSocket );
+                    socketState.DataFrame = new DataFramePacket ( socketState.ExpectedFrameSize );
+                    socketState.IsFrameSizeKnown = true;
+                    socketState.TotalBytesRead = 0; // reset num bytes read cus we dont want the framesize byte count included
+                }
+
+                if ( socketState.ExpectedFrameSize != 0 ) { // if expectedframesize not 0 || -1, check why
+                    if ( socketState.IsFrameSizeKnown ) { // if framesize known, switch to using the dataframe buffer
+                        serverSocket.BeginReceive ( socketState.DataFrame.Frame, 0,
+                            socketState.DataFrame.Frame.Length,
+                            SocketFlags.None, new AsyncCallback ( OnRecv ),
+                            socketState );
+                    } else { // wait for more bytes to get the framesize
+                        serverSocket.BeginReceive ( socketState.FrameSize, 
+                            socketState.TotalBytesRead, // offset
+                            socketState.FrameSize.Length - socketState.TotalBytesRead, // remaining bytes needed to get a complete framesize
+                            SocketFlags.None, new AsyncCallback ( OnRecv ),
+                            socketState );
+                    }
+                } else { // a 0 means keep alive
+                    RecvdDataFrameEventArgs args = new RecvdDataFrameEventArgs(null, DataFrameStatus.KeepAlive);
+                    RaiseDataFrameRecvd ( args ); // notify listeners of keep alive packet
+
+                    socketState.InitState ( );
+                }
             } else {
-                //serverSocket.BeginReceive ( socketState.FrameSize, 0, socketState.FrameSize.Length, SocketFlags.None, new AsyncCallback ( RecvCallback ), socketState );
-                //  socketState.DataFrame.AddData ( socketState.Buffer, bytesRead );
-                // socketState.TotalBytesRead += bytesRead;
-                socketState.DataFrame.AddData ( socketState.Buffer, bytesRead );
-                serverSocket.BeginReceive ( socketState.Buffer, 0, socketState.Buffer.Length, 0, new AsyncCallback ( RecvCallback ), socketState );
-                //socketState.TotalBytesRead += bytesRead;
-            }
-            
-            //serverSocket.BeginReceive ( socketState.Buffer, 0, socketState.Buffer.Length, 0, new AsyncCallback ( RecvCallback ), socketState );
-        } catch ( ObjectDisposedException ode ) {
-            Debug.Log ( ode );
-        } catch ( Exception e ) {
-            Debug.Log ( e );
-        }
-    }
+                if ( socketState.TotalBytesRead == socketState.ExpectedFrameSize ) { // we've got the entire msg
+                    RecvdDataFrameEventArgs args = new RecvdDataFrameEventArgs(socketState.DataFrame, DataFrameStatus.Normal);
+                    RaiseDataFrameRecvd ( args ); // notify listeners of the incoming daraframe
 
-    private void RecvCallback_delimted ( IAsyncResult ar ) {
-        SocketState socketState = (SocketState) ar.AsyncState;
+                    socketState.InitState ( ); // reset socket state
+                    socketState.ReaderSocket = serverSocket;
+                    serverSocket.BeginReceive ( socketState.FrameSize, 0, // reenter the listen loop
+                        socketState.FrameSize.Length, SocketFlags.None, 
+                        new AsyncCallback ( OnRecv ), socketState );
+                } else {
+                    if ( bytesRead <= 0 )
+                        Debug.Log ( "Zero bytes recvd" ); // TODO: handle ...with exception?
 
-        try {
-            int bytesRead = socketState.WorkSocket.EndReceive(ar); // read bytes from strem
-            bool isDataFrame = false;
-
-            socketState.TotalBytesRead += bytesRead;
-
-            if ( bytesRead > 0 ) {
-                int bufferSize = bytesRead;
-                string currentBuffer = Encoding.ASCII.GetString ( socketState.Buffer );
-
-                for ( int i = 0; i < currentBuffer.Length; i++ ) { // read through the buffer and look for delimiting char, '\n'
-                    if ( currentBuffer[i] == '\n' ) {
-                        isDataFrame = true;
-                        bufferSize = i + 1;
-                        break;
-                    }
+                    serverSocket.BeginReceive ( socketState.DataFrame.Frame,
+                        socketState.TotalBytesRead, // offset
+                        socketState.DataFrame.Frame.Length - socketState.TotalBytesRead, // remaining buffer
+                        SocketFlags.None, new AsyncCallback ( OnRecv ),
+                        socketState );
                 }
-
-                if ( isDataFrame ) { // if we reached a delimiting char, copy any remaining bytes before into the current DataFrame
-                    byte[] temp = new byte[bufferSize];
-
-                    for ( int i = 0; i < bufferSize; i++ ) {
-                        temp[i] = socketState.Buffer[i];
-                    }
-
-                    socketState.DataFrame.AddData ( temp, bufferSize );
-                } else { // else just copy the entire buffer
-                    socketState.DataFrame.AddData ( socketState.Buffer, bufferSize );
-                }
-
-                Debug.Log ( Encoding.ASCII.GetString ( socketState.DataFrame.Buffer ) ); // print for debug
-
-                if ( isDataFrame ) { // if we reached a delimiting char, reset client state and copy any remaining bytes from the previous buffer state into new buffer state
-                    int bufferRemainder = socketState.Buffer.Length - bufferSize;
-                    byte[] temp = new byte[bufferRemainder];
-
-                    for ( int i = 0; i < bufferRemainder; i++ ) {
-                        temp[i] = socketState.Buffer[bufferSize + i];
-                    }
-
-                    // SEND DATAFRAME OFF ...
-
-                    Debug.Log ( "[Client:RecvCallback] <EOM> New DataFrame <EOM>" );
-                    socketState = new SocketState ( );
-                    socketState.WorkSocket = serverSocket;
-
-                    socketState.DataFrame.AddData ( temp, bufferRemainder );
-                }
-            }
-
-            if ( bytesRead == 0 ) { // if no bytes read, the connection is over, todo: handle
-                Debug.Log ( "[Client:RecvCallback] No Bytes Read" );
-            } else { // else keep listening for more
-                socketState.WorkSocket.BeginReceive ( socketState.Buffer, 0, socketState.Buffer.Length, 0, new AsyncCallback ( RecvCallback ), socketState ); // THIS SHOULD BE SERVER SOCKET INSTEAD OF THE STATE SOCKET
             }
         } catch ( ObjectDisposedException ode ) {
             Debug.Log ( ode );

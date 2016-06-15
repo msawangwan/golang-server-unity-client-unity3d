@@ -9,6 +9,8 @@ public class NetworkManager : MonoBehaviour {
 	void Start () {
         clientConnection_async = new ClientTCP ( );
         player = FindObjectOfType<Player> ( );
+
+        clientConnection_async.RaiseDataFrameRecvd += HandleOnDataFrameRecvd;
     }
 
     bool isInitialConnection = true;
@@ -24,7 +26,7 @@ public class NetworkManager : MonoBehaviour {
     public void Test_async_connect() {
         Debug.Log ( "Attempting to connect -- listening for server reply .. " );
         clientConnection_async.Connect ( );
-        clientConnection_async.Listen ( );
+        clientConnection_async.ListenAndRecvAsync ( );
     }
 
     public void Test_async_disconnect() {
@@ -37,6 +39,10 @@ public class NetworkManager : MonoBehaviour {
         player.deck.Add ( card );
         byte[] d = player.deck.DeckSerializer ( );
 
-        clientConnection_async.Send ( d );
+        clientConnection_async.SendAsync ( d );
+    }
+
+    private void HandleOnDataFrameRecvd ( RecvdDataFrameEventArgs e ) {
+
     }
 }
