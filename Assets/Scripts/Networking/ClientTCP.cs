@@ -1,6 +1,5 @@
 ﻿using UnityEngine;
 using System;
-using System.Text;
 using System.Net;
 using System.Net.Sockets;
 
@@ -25,12 +24,21 @@ public enum DataFrameStatus {
 
 /* This is the argument passed on receiving an entire dataframe. */
 public class RecvdDataFrameEventArgs {
-    public DataFramePacket Data { get; private set; }
-    public DataFrameStatus Status { get; private set; }
+    public readonly DataFramePacket Data;
+    public readonly DataFrameStatus Status;
 
+    public readonly Exception Error;
+
+    /* Default Constructor. */
     public RecvdDataFrameEventArgs ( DataFramePacket dfp, DataFrameStatus dfs ) {
         Data = dfp;
         Status = dfs;
+    }
+
+    public RecvdDataFrameEventArgs ( DataFramePacket dfp, DataFrameStatus dfs, Exception e ) {
+        Data = dfp;
+        Status = dfs;
+        Error = e;
     }
 }
 

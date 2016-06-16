@@ -6,6 +6,7 @@ public class NetworkManager : MonoBehaviour {
     private ClientTCP clientConnection;
     private Player player;
     private DataFramePacket packet = null;
+    private Deck saved = new Deck(false);
 
     private bool hasRecvdData = false;
 
@@ -19,7 +20,8 @@ public class NetworkManager : MonoBehaviour {
     void Update() {
         if ( hasRecvdData ) {
             Debug.Log ( "got data" );
-            Debug.Log ( BitConverter.ToString ( packet.Frame ) );
+            //Debug.Log ( BitConverter.ToString ( packet.Frame ) );
+
             hasRecvdData = false;
         }
     }
@@ -48,6 +50,7 @@ public class NetworkManager : MonoBehaviour {
         Debug.Log ( "handling" );
         if ( e.Status == DataFrameStatus.Normal ) {
             packet = e.Data;
+            saved.DeckDeserializer ( packet.Frame );
             hasRecvdData = true;
         }
     }

@@ -4,7 +4,7 @@ using System.Collections;
 
 public class Player : MonoBehaviour {
     public Hand hand = new Hand(52);
-    public Deck deck = new Deck();
+    public Deck deck = new Deck(true);
 
 	void Start () {
         deck.Shuffle ( );

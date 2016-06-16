@@ -22,13 +22,15 @@ namespace madMeesh.Cards {
         private Card[] deck;
         private Queue<Card> pile;
 
-        public Deck () {
+        public Deck (bool createWithNewCards) {
             Size = 52;
 
             deck = new Card[Size];
             pile = new Queue<Card> ( );
 
-            Init ( );
+            if ( createWithNewCards ) {
+                Init ( );
+            }
         }
 
         public Card Draw() {
