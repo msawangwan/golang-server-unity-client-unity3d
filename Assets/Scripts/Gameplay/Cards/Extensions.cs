@@ -63,7 +63,7 @@ namespace madMeesh.Cards {
                     Card c = d.CardDeserializer(currentCard);
                     Debug.Log ( c.PrintCard ( ) );
 
-                    d.Add ( c );
+                    d.AddToBottomOfActivePile ( c );
                     currentCard = new byte[12];
                 }
 

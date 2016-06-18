@@ -12,7 +12,7 @@ public class NetworkManager : MonoBehaviour {
 
 	void Start () {
         clientConnection = new ClientTCP ( );
-        player = FindObjectOfType<Player> ( );
+        //player = new Player ( );
 
         clientConnection.RaiseDataFrameRecvd += HandleOnDataFrameRecvd;
     }
@@ -39,8 +39,8 @@ public class NetworkManager : MonoBehaviour {
     
     public void Test_async_send() {
         Debug.Log ( "Sending TestData from host to client" );
-        Card card = player.deck.Draw ( );
-        player.deck.Add ( card );
+        Card card = player.deck.DrawFromTopActivePile ( );
+        player.deck.AddToBottomOfActivePile ( card );
         byte[] d = player.deck.DeckSerializer ( );
 
         clientConnection.SendAsync ( d );

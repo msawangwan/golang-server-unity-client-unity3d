@@ -20,35 +20,42 @@ namespace madMeesh.Cards {
         public int Size { get; private set; }
 
         private Card[] deck;
-        private Queue<Card> pile;
+        private Queue<Card> activePile;
+        private Stack<Card> discardPile;
 
         public Deck (bool createWithNewCards) {
             Size = 52;
 
             deck = new Card[Size];
-            pile = new Queue<Card> ( );
+            activePile = new Queue<Card> ( );
+            discardPile = new Stack<Card> ( );
 
             if ( createWithNewCards ) {
-                Init ( );
+                InitNewDeck ( );
             }
         }
 
-        public Card Draw() {
-            if ( pile.Count > 0 && pile.Peek ( ) != null ) {
-                return pile.Dequeue ( );
+        public Card DrawFromTopActivePile() {
+            if ( activePile.Count > 0 && activePile.Peek ( ) != null ) {
+                return activePile.Dequeue ( );
             }
             return null;
         }
 
-        public Card PeekTopCard() {
-            return pile.Peek ( );
+        public Card PeekTopCardActivePile() {
+            return activePile.Peek ( );
         }
 
-        public void Add(Card card) {
-            pile.Enqueue ( card );
+        public void AddToBottomOfActivePile(Card card) {
+            activePile.Enqueue ( card );
         }
 
-        public void Shuffle() {
+        public void AddToTopOfDiscardPile(Card card) {
+            discardPile.Push ( card );
+        }
+
+        /* Shuffles the deck. */
+        public void ShuffleNewDeck() {
             Card[] deckCopy = new Card[52];
             int numShuffled = 0;
 
@@ -63,7 +70,7 @@ namespace madMeesh.Cards {
                     deck[randCard] = null;
                     deckCopy[numShuffled] = current;
 
-                    pile.Enqueue ( current );
+                    activePile.Enqueue ( current );
 
                     ++numShuffled;
                 }
@@ -72,7 +79,8 @@ namespace madMeesh.Cards {
             deck = deckCopy;
         }
 
-        private void Init ( ) {
+        /* Creates a new deck of cards. */
+        private void InitNewDeck ( ) {
             Card[] temp = new Card[52];
 
             for ( int i = 0; i < temp.Length; i++ ) {
