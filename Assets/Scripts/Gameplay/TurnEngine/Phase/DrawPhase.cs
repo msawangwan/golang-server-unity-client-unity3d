@@ -1,24 +1,19 @@
 ﻿using UnityEngine;
-using System.Collections;
-using System;
+using madMeesh.Cards;
 
 namespace madMeesh.TurnBasedEngine {
     public class DrawPhase : Phase {
-        public DrawPhase() : base() { }
-
-        int testcount = 100;
+        public DrawPhase( TurnController phaseOwner ) : base( phaseOwner ) {
+            Debug.Log ( "Draw Phase" );
+            phaseOwner.OwningPlayer.PlayerDeck.RaiseCardDrawn += HandleOnCardDrawn;
+        }
 
         protected override void PhaseUpdateLoop ( ) {
-            Debug.Log ( "Draw Phase" );
-
             if ( IsPhaseComplete == false ) {
-                if ( testcount > 0 ) {
-                    testcount--;
-                    return;
-                }
+                return;
             }
 
-            nextPhase = new EndTurnPhase ( );
+            nextPhase = new EndTurnPhase ( currentOwner );
             OnPhaseCompleted ( );
 
             HasCompletedPhase = true;
@@ -27,6 +22,10 @@ namespace madMeesh.TurnBasedEngine {
 
         public override void SetNextPhase ( IPhase next ) {
             nextPhase = next;
+        }
+
+        private void HandleOnCardDrawn ( CardAction drawn ) {
+            IsPhaseComplete = true;
         }
     }
 }

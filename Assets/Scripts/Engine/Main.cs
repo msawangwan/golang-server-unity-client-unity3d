@@ -9,8 +9,9 @@ namespace madMeesh {
         void Start() {
             turnengine = FindObjectOfType<TurnEngineComponent> ( );
             p1component = FindObjectOfType<PlayerComponent> ( );
-            p1component.Reference = new Player ( );
-            turnengine.EnqueueTurnTaker ( p1component.Reference.TurnController );
+            p1component.PlayerReference = new Player ( );
+            p1component.PlayerReference.InitialiseNew ( );
+            turnengine.EnqueueTurnTaker ( p1component.PlayerReference.PlayerTurnController );
         }
     }
 }

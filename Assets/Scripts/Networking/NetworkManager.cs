@@ -39,9 +39,9 @@ public class NetworkManager : MonoBehaviour {
     
     public void Test_async_send() {
         Debug.Log ( "Sending TestData from host to client" );
-        Card card = player.deck.DrawFromTopActivePile ( );
-        player.deck.AddToBottomOfActivePile ( card );
-        byte[] d = player.deck.DeckSerializer ( );
+        Card card = player.PlayerDeck.DrawFromTopOfActivePile ( );
+        player.PlayerDeck.AddToBottomOfActivePile ( card );
+        byte[] d = player.PlayerDeck.DeckSerializer ( );
 
         clientConnection.SendAsync ( d );
     }

@@ -1,8 +1,9 @@
-﻿using UnityEngine;
-using System;
+﻿using System;
 
 namespace madMeesh.TurnBasedEngine {
-    public class PlayerTurnController {
+    public class TurnController {
+        public Player OwningPlayer { get; set; }
+
         public bool HasStartedTurn { get; private set; }
         public bool HasCompletedTurn { get; private set; }
 
@@ -11,8 +12,12 @@ namespace madMeesh.TurnBasedEngine {
 
         public event Action RaiseTurnCompleted;
 
-        public void StartTurn ( IPhase startOfTurnPhase ) {
-            currentPhase = startOfTurnPhase;
+        public TurnController(Player owner) {
+            OwningPlayer = owner;
+        }
+
+        public void StartTurn ( IPhase firstPhaseOfTurn ) {
+            currentPhase = firstPhaseOfTurn;
             HasStartedTurn = true;
             HasCompletedTurn = false;
         }
@@ -26,7 +31,6 @@ namespace madMeesh.TurnBasedEngine {
             currentPhase.ExecutePhase ( );
 
             if ( currentPhase.HasCompletedPhase == false ) {
-                Debug.Log ( "Phase not yet complete." );
                 return;
             }
 

@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+﻿using System;
 using System.Collections.Generic;
 
 namespace madMeesh.Cards {
@@ -19,6 +19,9 @@ namespace madMeesh.Cards {
 
         public int Size { get; private set; }
 
+        /* Notifies of card being drawn from a pile. */
+        public Action<CardAction> RaiseCardDrawn { get; set; }
+
         private Card[] deck;
         private Queue<Card> activePile;
         private Stack<Card> discardPile;
@@ -35,15 +38,30 @@ namespace madMeesh.Cards {
             }
         }
 
-        public Card DrawFromTopActivePile() {
+        public Card DrawFromTopOfActivePile() {
             if ( activePile.Count > 0 && activePile.Peek ( ) != null ) {
-                return activePile.Dequeue ( );
+                Card drawn = activePile.Dequeue();
+                CardAction args = new CardAction ( drawn );
+
+                RaiseCardDrawn ( args );
+                return drawn;
             }
             return null;
         }
 
-        public Card PeekTopCardActivePile() {
+        public Card PeekTopCardOfActivePile() {
             return activePile.Peek ( );
+        }
+
+        public Card DrawFromDiscardPile() {
+            if ( discardPile.Count > 0 && discardPile.Peek ( ) != null ) {
+                Card drawn = discardPile.Pop();
+                CardAction args = new CardAction ( drawn );
+
+                RaiseCardDrawn ( args );
+                return drawn;
+            }
+            return null;
         }
 
         public void AddToBottomOfActivePile(Card card) {
@@ -52,6 +70,10 @@ namespace madMeesh.Cards {
 
         public void AddToTopOfDiscardPile(Card card) {
             discardPile.Push ( card );
+        }
+
+        public void AddDeckToActivePile ( ) {
+            ShuffleNewDeck ( );
         }
 
         /* Shuffles the deck. */
@@ -77,6 +99,13 @@ namespace madMeesh.Cards {
             }
 
             deck = deckCopy;
+        }
+
+        /* Print each card in the deck. */
+        public void PrintDeck() {
+            for ( int i = 0; i < 52; i++ ) {
+                UnityEngine.Debug.Log ( this[i].PrintCard ( ) );
+            }
         }
 
         /* Creates a new deck of cards. */
@@ -134,4 +163,12 @@ namespace madMeesh.Cards {
             }
         }
     }
+
+   // public class CardDrawnActionArgs {
+    //    public readonly Card DrawnCard;
+
+   //     public CardDrawnActionArgs(Card drawn) {
+   //         DrawnCard = drawn;
+   //     }
+   // }
 }

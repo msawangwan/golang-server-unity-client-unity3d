@@ -4,23 +4,28 @@ using madMeesh.TurnBasedEngine;
 using System.Collections;
 
 public class Player {
-    public Hand hand = new Hand(52);
-    public Deck deck = new Deck(true);
+    public Hand PlayerHand { get; set; }
+    public Deck PlayerDeck { get; set; }
 
-    public PlayerTurnController TurnController { get; set; }
+    public TurnController PlayerTurnController { get; set; }
 
-    public ClientTCP netConn { get; set; }
+    public ClientTCP PlayerNetConn { get; set; }
 
     public bool IsTurn { get; set; }
 
 	public Player() {
-        TurnController = new PlayerTurnController ( );
-        deck.ShuffleNewDeck ( );
+        Init ( );
     }
 
-    public void PrintDeck() {
-        for ( int i = 0; i < 52; i++ ) {
-            Debug.Log ( deck[i].PrintCard( ) );
-        }
+    public void InitialiseNew() {
+        PlayerHand = new Hand ( 5 );
+        PlayerDeck = new Deck ( true );
+
+        PlayerDeck.AddDeckToActivePile ( );
+    }
+
+    private void Init() {
+        PlayerTurnController = new TurnController ( this );
+        PlayerNetConn = new ClientTCP ( );
     }
 }

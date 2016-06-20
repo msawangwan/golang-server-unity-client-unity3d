@@ -1,20 +1,22 @@
 ﻿using UnityEngine;
-using System.Collections;
-using System;
 
 namespace madMeesh.TurnBasedEngine {
     public class StartOfTurnPhase : Phase {
-        public StartOfTurnPhase() : base() { }
+        public StartOfTurnPhase( TurnController phaseOwner ) : base( phaseOwner ) {
+            Debug.Log ( "Start of turn" );
+        }
 
         protected override void PhaseUpdateLoop ( ) {
-            Debug.Log ( "Start of turn" );
-
             if ( IsPhaseComplete == false ) {
+                /*
+                    Implement actions to complete 
+                    before setting IsPhaseCompelte to true.
+                */
                 IsPhaseComplete = true;
                 return;
             }
 
-            nextPhase = new DrawPhase ( );
+            nextPhase = new DrawPhase ( currentOwner );
             OnPhaseCompleted ( );
 
             HasCompletedPhase = true;

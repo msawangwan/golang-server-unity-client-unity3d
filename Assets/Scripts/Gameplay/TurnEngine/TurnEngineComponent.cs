@@ -3,23 +3,23 @@ using System.Collections.Generic;
 
 namespace madMeesh.TurnBasedEngine {
     public class TurnEngineComponent : MonoBehaviour {
-        private Queue<PlayerTurnController> turnQueue = new Queue<PlayerTurnController> ( );
+        private Queue<TurnController> turnQueue = new Queue<TurnController> ( );
 
         private IPhase startPhase;
         private IPhase nextPhase = null;
 
-        private PlayerTurnController turnTaker;
-        private PlayerTurnController currentTurnTaker {
+        private TurnController turnTaker;
+        private TurnController currentTurnTaker {
             set {
                 turnTaker = value;
-                startPhase = new StartOfTurnPhase();
+                startPhase = new StartOfTurnPhase ( value ); // pass in current turn taker as owner of phase
 
                 turnTaker.RaiseTurnCompleted += HandleOnTurnCompleted;
                 turnTaker.StartTurn ( startPhase );
             }
         }
 
-        public void EnqueueTurnTaker ( PlayerTurnController player ) {
+        public void EnqueueTurnTaker ( TurnController player ) {
             turnQueue.Enqueue ( player );
         }
 
@@ -34,7 +34,6 @@ namespace madMeesh.TurnBasedEngine {
             }
 
             if ( turnTaker.HasCompletedTurn == false ) {
-                Debug.Log ( "Taking Turn" );
                 turnTaker.TakeTurn ( );
                 return;
             }

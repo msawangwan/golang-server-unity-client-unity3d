@@ -4,11 +4,11 @@ using System;
 
 namespace madMeesh.TurnBasedEngine {
     public class EndTurnPhase : Phase {
-        public EndTurnPhase() : base() { }
+        public EndTurnPhase( TurnController phaseOwner ) : base( phaseOwner ) {
+            Debug.Log ( "End turn" );
+        }
 
         protected override void PhaseUpdateLoop ( ) {
-            Debug.Log ( "End turn" );
-
             if ( IsPhaseComplete == false ) {
                 IsPhaseComplete = true;
                 return;
