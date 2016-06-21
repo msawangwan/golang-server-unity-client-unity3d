@@ -3,7 +3,7 @@ using madMeesh.Cards;
 
 namespace madMeesh.TurnBasedEngine {
     public class DrawPhase : Phase {
-        public DrawPhase( TurnController phaseOwner ) : base( phaseOwner ) {
+        public DrawPhase( TurnController phaseOwner ) : base ( phaseOwner ) {
             Debug.Log ( "Draw Phase" );
             phaseOwner.OwningPlayer.PlayerDeck.RaiseCardDrawn += HandleOnCardDrawn;
         }
@@ -13,7 +13,7 @@ namespace madMeesh.TurnBasedEngine {
                 return;
             }
 
-            nextPhase = new EndTurnPhase ( currentOwner );
+            nextPhase = new DeployPhase ( currentOwner );
             OnPhaseCompleted ( );
 
             HasCompletedPhase = true;

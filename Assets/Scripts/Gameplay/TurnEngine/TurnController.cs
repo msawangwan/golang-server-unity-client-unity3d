@@ -7,8 +7,8 @@ namespace madMeesh.TurnBasedEngine {
         public bool HasStartedTurn { get; private set; }
         public bool HasCompletedTurn { get; private set; }
 
-        private IPhase currentPhase;
-        private IPhase nextPhase;
+        public IPhase CurrentPhase { get; private set; }
+        public IPhase NextPhase { get; private set; }
 
         public event Action RaiseTurnCompleted;
 
@@ -17,33 +17,33 @@ namespace madMeesh.TurnBasedEngine {
         }
 
         public void StartTurn ( IPhase firstPhaseOfTurn ) {
-            currentPhase = firstPhaseOfTurn;
+            CurrentPhase = firstPhaseOfTurn;
             HasStartedTurn = true;
             HasCompletedTurn = false;
         }
 
         public void TakeTurn() {
-            if ( currentPhase.HasEnteredPhase == false ) {
-                currentPhase.RaisePhaseComplete += HandleOnPhaseCompleted;
-                currentPhase.EnterPhase ( );
+            if ( CurrentPhase.HasEnteredPhase == false ) {
+                CurrentPhase.RaisePhaseComplete += HandleOnPhaseCompleted;
+                CurrentPhase.EnterPhase ( );
             }
 
-            currentPhase.ExecutePhase ( );
+            CurrentPhase.ExecutePhase ( );
 
-            if ( currentPhase.HasCompletedPhase == false ) {
+            if ( CurrentPhase.HasCompletedPhase == false ) {
                 return;
             }
 
-            currentPhase = nextPhase;
+            CurrentPhase = NextPhase;
 
-            if ( nextPhase == null ) {
+            if ( NextPhase == null ) {
                 OnTurnCompleted ( );
                 return;
             }
 
-            nextPhase = null;
+            NextPhase = null;
 
-            currentPhase.RaisePhaseComplete -= HandleOnPhaseCompleted;
+            CurrentPhase.RaisePhaseComplete -= HandleOnPhaseCompleted;
         }
 
         public void EndTurn() {
@@ -57,7 +57,7 @@ namespace madMeesh.TurnBasedEngine {
         }
 
         private void HandleOnPhaseCompleted(IPhase next) {
-            nextPhase = next;
+            NextPhase = next;
         }
     }
 }

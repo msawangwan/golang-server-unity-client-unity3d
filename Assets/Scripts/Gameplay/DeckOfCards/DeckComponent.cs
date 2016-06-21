@@ -1,5 +1,6 @@
 ﻿using UnityEngine;
 using UnityEngine.UI;
+using madMeesh.TurnBasedEngine;
 
 /// <summary>
 /// GameObject Component.
@@ -35,12 +36,15 @@ namespace madMeesh.Cards {
         private void OnCardDraw ( ) {
             drawDeckGameObject.onClick.RemoveAllListeners ( );
             drawDeckGameObject.onClick.AddListener ( ( ) => {
-                int maxCardsAllowed = owner.PlayerReference.PlayerHand.HandSize;
-                int numCardsInHand = owner.PlayerReference.PlayerHand.HandCount;
+                IPhase currentPhase = owner.PlayerReference.PlayerTurnController.CurrentPhase;
+                if ( currentPhase is DrawPhase ) {
+                    int maxCardsAllowed = owner.PlayerReference.PlayerHand.HandSize;
+                    int numCardsInHand = owner.PlayerReference.PlayerHand.HandCount;
 
-                if ( numCardsInHand < maxCardsAllowed ) {
-                    Card c = DeckOwner.DrawFromTopOfActivePile();
-                    owner.PlayerReference.PlayerHand.AddToHand ( c );
+                    if ( numCardsInHand < maxCardsAllowed ) {
+                        Card c = DeckOwner.DrawFromTopOfActivePile();
+                        owner.PlayerReference.PlayerHand.AddToHand ( c );
+                    }
                 }
             } );
         }

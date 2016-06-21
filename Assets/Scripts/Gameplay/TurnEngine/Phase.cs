@@ -1,4 +1,6 @@
-﻿namespace madMeesh.TurnBasedEngine {
+﻿using System;
+
+namespace madMeesh.TurnBasedEngine {
     public abstract class Phase : IPhase {
         public bool HasEnteredPhase { get; protected set; }
         public bool IsPhaseComplete { get; protected set; }
@@ -9,7 +11,7 @@
 
         protected bool IsPhaseExecuting { get; set; }
 
-        public Phase(TurnController phaseOwner) {
+        public Phase ( TurnController phaseOwner ) {
             currentOwner = phaseOwner;
 
             HasEnteredPhase = false;
@@ -27,7 +29,7 @@
             }
         }
 
-        public event System.Action<IPhase> RaisePhaseComplete;
+        public event Action<IPhase> RaisePhaseComplete;
         public abstract void SetNextPhase ( IPhase next );
 
         /* All derived Phases must implement an if statement that returns until the phase is complete. */

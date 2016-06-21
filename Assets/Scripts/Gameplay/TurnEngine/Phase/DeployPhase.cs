@@ -1,24 +1,20 @@
-﻿using UnityEngine;
-using System.Collections;
-using System;
+﻿using System;
+using UnityEngine;
 
 namespace madMeesh.TurnBasedEngine {
-    public class EndTurnPhase : Phase {
-        public EndTurnPhase( TurnController phaseOwner ) : base ( phaseOwner ) {
-            Debug.Log ( "End turn" );
-        }
+    public class DeployPhase : Phase {
+        public DeployPhase ( TurnController phaseOwner ) : base ( phaseOwner ) { }
 
         protected override void PhaseUpdateLoop ( ) {
             if ( IsPhaseComplete == false ) {
-                IsPhaseComplete = true;
                 return;
             }
 
-            nextPhase = null;
+            nextPhase = new EndTurnPhase ( currentOwner );
             OnPhaseCompleted ( );
 
             HasCompletedPhase = true;
-            IsPhaseComplete = false;
+            IsPhaseExecuting = false;
         }
 
         public override void SetNextPhase ( IPhase next ) {
