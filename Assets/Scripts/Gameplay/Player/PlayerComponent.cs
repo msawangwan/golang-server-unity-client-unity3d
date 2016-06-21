@@ -3,20 +3,30 @@ using madMeesh.Cards;
 using System.Collections;
 
 public class PlayerComponent : MonoBehaviour {
-    public Player PlayerReference;
+    public Player PlayerReference { get; private set; }
 
-    public DeckComponent DeckGO;
-    public HandComponent HandGO;
-    public CardViewComponent CardViewGO;
+    public DeckComponent DeckGameObject { get; private set; }
+    public HandComponent HandGameObject { get; private set; }
+    public CardViewComponent CardViewGameObject { get; private set; }
+    public TableComponent TableGameObject { get; private set; }
 
-    private madMeesh.Cards.MasterControllerComponent cardController;
+    public void RegisterPlayerReference ( Player player ) {
+        PlayerReference = player;
+    }
 
     private void Start() {
-        DeckGO = FindObjectOfType<DeckComponent> ( );
-        HandGO = FindObjectOfType<HandComponent> ( );
-        CardViewGO = FindObjectOfType<CardViewComponent> ( );
+        RegisterPlayerGameObjects ( );
+    }
 
-        cardController = FindObjectOfType<MasterControllerComponent> ( );
-        cardController.SetOwner ( this );
+    private void RegisterPlayerGameObjects() {
+        DeckGameObject = FindObjectOfType<DeckComponent> ( );
+        HandGameObject = FindObjectOfType<HandComponent> ( );
+        CardViewGameObject = FindObjectOfType<CardViewComponent> ( );
+        TableGameObject = FindObjectOfType<TableComponent> ( );
+
+        DeckGameObject.RegisterComponentWithOwner ( this );
+        HandGameObject.RegisterComponentWithOwner ( this );
+        CardViewGameObject.RegisterComponentWithOwner ( this );
+        TableGameObject.RegisterComponentWithOwner ( this );
     }
 }

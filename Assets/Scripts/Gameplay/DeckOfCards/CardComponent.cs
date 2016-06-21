@@ -1,15 +1,11 @@
 ﻿using UnityEngine;
-using System.Collections;
+using UnityEngine.UI;
 
-public class CardComponent : MonoBehaviour {
+namespace madMeesh.Cards {
+    [RequireComponent(typeof(Button))]
+    public class CardComponent : MonoBehaviour {
+        public Card CardReference { get; private set; }
 
-	// Use this for initialization
-	void Start () {
-	
-	}
-	
-	// Update is called once per frame
-	void Update () {
-	
-	}
+        private Button CardGameObject = null;
+    }
 }

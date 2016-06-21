@@ -10,40 +10,38 @@ using UnityEngine.UI;
 namespace madMeesh.Cards {
     [RequireComponent(typeof(Button))]
     public class DeckComponent : MonoBehaviour {
-        public Deck OwnerDeck { get; private set; }
+        public Deck DeckOwner { get; private set; }
 
         private PlayerComponent owner = null;
-        private Button deckActiveGO = null;
-
-        private void Start ( ) {
-            deckActiveGO = GetComponent<Button> ( );
-
-            OwnerDeck = null;
-        }
+        private Button drawDeckGameObject = null;
 
         public void RegisterComponentWithOwner ( PlayerComponent player ) {
             owner = player; // assign owning player
 
             if ( owner != null ) { // assign owning player's deck
-                if ( OwnerDeck == null ) {
-                    OwnerDeck = owner.PlayerReference.PlayerDeck;
+                if ( DeckOwner == null ) {
+                    DeckOwner = owner.PlayerReference.PlayerDeck;
                 }
             }
 
             OnCardDraw ( );
         }
 
-        private void OnCardDraw() {
-            deckActiveGO.onClick.RemoveAllListeners ( );
-            deckActiveGO.onClick.AddListener ( ( ) => {
+        private void Start ( ) {
+            drawDeckGameObject = GetComponent<Button> ( );
+        }
+
+        /* Registers onClick button listener. */
+        private void OnCardDraw ( ) {
+            drawDeckGameObject.onClick.RemoveAllListeners ( );
+            drawDeckGameObject.onClick.AddListener ( ( ) => {
                 int maxCardsAllowed = owner.PlayerReference.PlayerHand.HandSize;
                 int numCardsInHand = owner.PlayerReference.PlayerHand.HandCount;
 
-                if ( numCardsInHand <= maxCardsAllowed ) {
-                    Card c = OwnerDeck.DrawFromTopOfActivePile();
+                if ( numCardsInHand < maxCardsAllowed ) {
+                    Card c = DeckOwner.DrawFromTopOfActivePile();
                     owner.PlayerReference.PlayerHand.AddToHand ( c );
                 }
-
             } );
         }
     }

@@ -16,21 +16,27 @@ namespace madMeesh.Cards {
 
             OwnerHand = owner.PlayerReference.PlayerHand;
             OwnerHand.RaiseAddedCardToHand += HandleOnCardAdded;
+            OwnerHand.RaisePlayedCardFromHand += HandleOnCardRemoved;
 
             handSlots = FindObjectsOfType<HandSlotComponent> ( );
+
+            for ( int i = 0; i < handSlots.Length; i++ ) {
+                handSlots[i].RegisterParentHandComponent ( owner );
+            }
         }
 
         private void HandleOnCardAdded ( CardAction added ) {
-            Debug.Log ( "Add " + added.CardID );
             int slotToAddTo = added.CardID;
             if ( slotToAddTo == currentEmptySlot ) {
                 if ( isFullHand == false ) {
-                    Debug.Log ( handSlots[slotToAddTo].name );
-                    handSlots[slotToAddTo].AddCardToSlot ( added.CardInAction );
-
+                    handSlots[slotToAddTo].AddCard ( added.CardInAction, slotToAddTo );
                     currentEmptySlot++;
                 }
             }
+        }
+
+        private void HandleOnCardRemoved ( CardAction removed ) {
+            currentEmptySlot--;
         }
     }
 }

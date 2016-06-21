@@ -10,32 +10,54 @@ namespace madMeesh.Cards {
         public bool IsOccupied { get; private set; }
 
         private PlayerComponent owner = null;
-        private Button cardInSlot;
+        private Button slotGameObject;
         private Text slotText;
-        
-        public bool IsSlotOccupied ( ) {
-            if ( IsOccupied )
-                return true;
-            return false;
+
+        private int slotID = -1;
+        private const string defaultText = "<EMPTY>";
+
+        public void RegisterParentHandComponent ( PlayerComponent player ) {
+            owner = player;
+            OwnerHand = owner.PlayerReference.PlayerHand;
         }
 
-        public void AddCardToSlot ( Card card ) {
-            if ( IsOccupied == false ) {
-                if ( CardInSlot == null ) {
-                    CardInSlot = card;
-                    slotText.text = CardInSlot.PrintCard ( );
-                }
+        public void AddCard ( Card card, int slotIndex ) {
+            if ( IsOccupied == false && CardInSlot == null ) {
+                CardInSlot = card;
+                slotID = slotIndex;
+                slotText.text = CardInSlot.PrintCard ( );
+
+                IsOccupied = true;
             }
         }
 
         private void Start() {
-            OwnerHand = null;
             CardInSlot = null;
 
-            cardInSlot = GetComponent<Button> ( );
+            slotGameObject = GetComponent<Button> ( );
             slotText = GetComponentInChildren<Text> ( );
 
+            slotText.text = defaultText;
+
             IsOccupied = false;
+
+            OnCardPlayedFromHand ( );
+        }
+
+        private void OnCardPlayedFromHand ( ) {
+            slotGameObject.onClick.RemoveAllListeners ( );
+            slotGameObject.onClick.AddListener ( ( ) => {
+                if ( IsOccupied == true && CardInSlot != null ) {
+                    if ( slotID != -1 ) {
+                        OwnerHand.PlayFromHand ( slotID );
+                        CardInSlot = null;
+                        slotText.text = defaultText;
+
+                        slotID = -1;
+                        IsOccupied = false;
+                    }
+                }
+            } );
         }
     }
 }

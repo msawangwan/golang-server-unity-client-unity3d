@@ -13,19 +13,21 @@ namespace madMeesh.Cards {
 
         public Hand(int handSize) {
             HandSize = handSize;
-            HandCount = -1;
+            HandCount = 0;
 
             hand = new Card[HandSize];
             Init ( );
         }
 
-        public int AddToHand(Card card) {
-            ++HandCount;
+        public int AddToHand ( Card card ) {
             if ( HandCount < HandSize ) {
+                UnityEngine.Debug.Log ( HandCount );
                 hand[HandCount] = card;
 
                 CardAction added = new CardAction ( card, HandCount );
                 RaiseAddedCardToHand ( added );
+
+                ++HandCount;
 
                 return HandCount;
             }

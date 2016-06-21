@@ -11,15 +11,15 @@ namespace madMeesh.Cards {
         
         public void RegisterComponentWithOwner ( PlayerComponent player) {
             owner = player;
-            deck = owner.DeckGO;
+            deck = owner.DeckGameObject;
 
             viewText = GetComponent<Text> ( );
             viewText.resizeTextForBestFit = true;
 
-            deck.OwnerDeck.RaiseCardDrawn += HandleOnDrewCard;
+            deck.DeckOwner.RaiseCardDrawn += HandleOnCardDraw;
         }
 
-        private void HandleOnDrewCard( CardAction drawActionArgs ) {
+        private void HandleOnCardDraw( CardAction drawActionArgs ) {
             viewText.text = drawActionArgs.CardInAction.PrintCard ( );
         }
     }
