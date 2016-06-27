@@ -7,14 +7,13 @@ namespace madMeesh {
         PlayerComponent p1component;
 
         void Start() {
-            turnengine = FindObjectOfType<TurnEngineComponent> ( );
-            Player player = new Player ( );
-            player.InitialiseNew ( );
+           // turnengine = FindObjectOfType<TurnEngineComponent> ( );
+           // Player player = new Player ( );
+           // player.InitialiseNew ( );
 
-            p1component = FindObjectOfType<PlayerComponent> ( );
-            p1component.RegisterPlayerReference ( player );
-            //p1component.PlayerReference.InitialiseNew ( );
-            turnengine.EnqueueTurnTaker ( p1component.PlayerReference.PlayerTurnController );
+           // p1component = FindObjectOfType<PlayerComponent> ( );
+            //p1component.RegisterPlayerReference ( player );
+           // turnengine.EnqueueTurnTaker ( p1component.PlayerReference.PlayerTurnController );
         }
     }
 }

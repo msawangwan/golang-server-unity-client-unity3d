@@ -49,6 +49,17 @@ namespace madMeesh.Cards {
             return null;
         }
 
+        public Card DrawFromTopOfActivePile_testConn ( ) {
+            if ( activePile.Count > 0 && activePile.Peek ( ) != null ) {
+                Card drawn = activePile.Dequeue();
+                CardAction args = new CardAction ( drawn );
+
+                //RaiseCardDrawn ( args );
+                return drawn;
+            }
+            return null;
+        }
+
         public Card PeekTopCardOfActivePile() {
             return activePile.Peek ( );
         }

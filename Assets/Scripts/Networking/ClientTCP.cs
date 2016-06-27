@@ -93,8 +93,8 @@ public class ClientTCP {
     /* Subscribers of this event will be notified when the client recvs a complete dataframe packet. */
     public Action<RecvdDataFrameEventArgs> RaiseDataFrameRecvd { get; set; }
 
-    private const string serverAddr = "127.0.0.1";
-    private const int serverPort = 9080;
+    private const string serverAddr = "10.0.0.76";
+    private const int serverPort = 9081;
 
     private static Socket serverSocket;
     private static IPAddress serverIP;

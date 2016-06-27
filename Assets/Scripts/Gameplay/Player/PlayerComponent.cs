@@ -24,9 +24,9 @@ public class PlayerComponent : MonoBehaviour {
         CardViewGameObject = FindObjectOfType<CardViewComponent> ( );
         TableGameObject = FindObjectOfType<TableComponent> ( );
 
-        DeckGameObject.RegisterComponentWithOwner ( this );
-        HandGameObject.RegisterComponentWithOwner ( this );
-        CardViewGameObject.RegisterComponentWithOwner ( this );
-        TableGameObject.RegisterComponentWithOwner ( this );
+       // DeckGameObject.RegisterComponentWithOwner ( this );
+      //  HandGameObject.RegisterComponentWithOwner ( this );
+      //  CardViewGameObject.RegisterComponentWithOwner ( this );
+      //  TableGameObject.RegisterComponentWithOwner ( this );
     }
 }
