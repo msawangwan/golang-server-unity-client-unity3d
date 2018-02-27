@@ -1,8 +1,8 @@
-#Unity Client Prototype
+# Unity Client Prototype
 
 * * *
 
-##About
+## About
 
 - **An async client/server model prototype**
 - **A (sad) attempt at creating a serialization protocol**
